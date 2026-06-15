@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store/useStore'
-import { RefreshCw, Calendar, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { RefreshCw, Calendar, AlertTriangle, CheckCircle, Clock, MessageCircle } from 'lucide-react'
 import { formatDate, SERVICE_ICONS, SERVICE_COLORS } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import { StreamingAccount } from '@/types'
@@ -8,6 +8,27 @@ import toast from 'react-hot-toast'
 import { SearchInput } from '@/components/ui/SearchInput'
 
 type Tab = 'today' | 'upcoming' | 'overdue' | 'all'
+
+function buildWhatsApp(a: StreamingAccount, isExpired: boolean) {
+  const phone = (a.client_phone || '').replace(/\D/g, '')
+  const num = phone.length === 10 ? `52${phone}` : phone
+  if (!num) return ''
+
+  const emoji: Record<string, string> = {
+    'Spotify': '🎵', 'YouTube Premium': '▶️', 'Disney+': '🏰',
+    'HBO Max': '👑', 'Prime Video': '📦', 'Netflix': '🎬',
+    'Crunchyroll': '⚡', 'Vix Premium': '🌟', 'Paramount+': '⭐',
+  }
+  const ico = emoji[a.service_type] || '📺'
+  const date = formatDate(a.renewal_date)
+  const name = a.client_name || 'Cliente'
+
+  const msg = isExpired
+    ? `Hola ${name}.\n\nDetectamos que tu servicio ya venció.\n\n${ico} Servicio: ${a.service_type}\n📧 Correo: ${a.email}\n\n💰 Importe de renovación: $${a.price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nPor favor comparte tu comprobante para reactivar tu servicio.\n\nGracias por tu preferencia.\nSSouL Streaming`
+    : `Hola ${name}.\n\nTe recordamos que tu servicio está próximo a vencer.\n\n${ico} Servicio: ${a.service_type}\n📧 Correo: ${a.email}\n\n📅 Fecha de renovación: ${date}\n💰 Importe: $${a.price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nUna vez realizado el pago comparte tu comprobante para registrar tu renovación.\n\nGracias por tu preferencia.\nSSouL Streaming`
+
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
+}
 
 export default function Renewals() {
   const { accounts, renewAccount } = useStore()
@@ -178,9 +199,26 @@ export default function Renewals() {
                   </div>
                 </div>
 
-                <button onClick={() => openRenew(a)} className="btn-primary w-full justify-center text-xs py-1.5">
-                  <RefreshCw size={12} /> Renovar ahora
-                </button>
+                <div className="flex gap-2 mt-1">
+                  <button onClick={() => openRenew(a)} className="btn-primary flex-1 justify-center text-xs py-1.5">
+                    <RefreshCw size={12} /> Renovar ahora
+                  </button>
+                  {a.client_phone && (() => {
+                    const waLink = buildWhatsApp(a, isOverdue)
+                    return waLink ? (
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Enviar mensaje de renovación por WhatsApp"
+                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/20 transition-colors text-xs font-medium flex-shrink-0"
+                      >
+                        <MessageCircle size={13} />
+                        WA
+                      </a>
+                    ) : null
+                  })()}
+                </div>
               </div>
             )
           })}
