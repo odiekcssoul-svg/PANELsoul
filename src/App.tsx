@@ -13,6 +13,7 @@ import Providers from '@/pages/Providers'
 import Notifications from '@/pages/Notifications'
 import ActivityPage from '@/pages/Activity'
 import Security from '@/pages/Security'
+import Import from '@/pages/Import'
 import { Play } from 'lucide-react'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="notifications" element={<Notifications />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="security" element={<Security />} />
+          <Route path="import" element={<Import />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
