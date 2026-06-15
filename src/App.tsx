@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useStore } from '@/store/useStore'
 import { AppLayout } from '@/components/layout/AppLayout'
+import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import Clients from '@/pages/Clients'
@@ -23,8 +24,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-orange-500 to-brand-orange-700 
-          flex items-center justify-center shadow-glow-orange">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700
+          flex items-center justify-center shadow-glow-blue">
           <Play size={24} className="text-white" fill="white" />
         </div>
         <div className="flex items-center gap-2 text-gray-400 text-sm">
@@ -38,7 +39,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  return isAuthenticated ? <>{children}</> : <Navigate to="/admin/login" replace />
 }
 
 export default function App() {
@@ -60,14 +61,20 @@ export default function App() {
             borderRadius: '10px',
             fontSize: '14px',
           },
-          success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
+          success: { iconTheme: { primary: '#3b82f6', secondary: '#fff' } },
           error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
         }}
       />
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* Landing pública */}
+        <Route path="/" element={<Landing />} />
+
+        {/* Admin login */}
+        <Route path="/admin/login" element={<Login />} />
+
+        {/* Panel admin protegido */}
         <Route
-          path="/"
+          path="/admin"
           element={
             <ProtectedRoute>
               <AppLayout />
@@ -86,6 +93,7 @@ export default function App() {
           <Route path="import" element={<Import />} />
           <Route path="accounting" element={<Accounting />} />
         </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

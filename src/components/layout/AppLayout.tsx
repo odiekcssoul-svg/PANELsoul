@@ -4,15 +4,17 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Dashboard',
-  '/clients': 'Clientes',
-  '/accounts': 'Servicios Streaming',
-  '/renewals': 'Renovaciones',
-  '/gmail': 'Correos Gmail',
-  '/providers': 'Proveedores',
-  '/notifications': 'Notificaciones',
-  '/activity': 'Registro de Actividad',
-  '/security': 'Seguridad',
+  '/admin':              'Dashboard',
+  '/admin/clients':      'Clientes',
+  '/admin/accounts':     'Servicios Streaming',
+  '/admin/renewals':     'Renovaciones',
+  '/admin/gmail':        'Correos Gmail',
+  '/admin/providers':    'Proveedores',
+  '/admin/accounting':   'Contabilidad',
+  '/admin/notifications':'Notificaciones',
+  '/admin/activity':     'Registro de Actividad',
+  '/admin/import':       'Importar Excel',
+  '/admin/security':     'Seguridad',
 }
 
 export function AppLayout() {

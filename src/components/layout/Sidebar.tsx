@@ -7,17 +7,17 @@ import {
 import { useStore } from '@/store/useStore'
 
 const NAV = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/clients', icon: Users, label: 'Clientes' },
-  { to: '/accounts', icon: Monitor, label: 'Servicios Streaming' },
-  { to: '/renewals', icon: RefreshCw, label: 'Renovaciones' },
-  { to: '/gmail', icon: Mail, label: 'Correos Gmail' },
-  { to: '/providers', icon: Truck, label: 'Proveedores' },
-  { to: '/accounting', icon: Wallet, label: 'Contabilidad' },
-  { to: '/notifications', icon: Bell, label: 'Notificaciones' },
-  { to: '/activity', icon: Activity, label: 'Actividad' },
-  { to: '/import', icon: FileSpreadsheet, label: 'Importar Excel' },
-  { to: '/security', icon: Shield, label: 'Seguridad' },
+  { to: '/admin',              icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/admin/clients',      icon: Users,           label: 'Clientes' },
+  { to: '/admin/accounts',     icon: Monitor,         label: 'Servicios Streaming' },
+  { to: '/admin/renewals',     icon: RefreshCw,       label: 'Renovaciones' },
+  { to: '/admin/gmail',        icon: Mail,            label: 'Correos Gmail' },
+  { to: '/admin/providers',    icon: Truck,           label: 'Proveedores' },
+  { to: '/admin/accounting',   icon: Wallet,          label: 'Contabilidad' },
+  { to: '/admin/notifications',icon: Bell,            label: 'Notificaciones' },
+  { to: '/admin/activity',     icon: Activity,        label: 'Actividad' },
+  { to: '/admin/import',       icon: FileSpreadsheet, label: 'Importar Excel' },
+  { to: '/admin/security',     icon: Shield,          label: 'Seguridad' },
 ]
 
 interface SidebarProps {
@@ -72,7 +72,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/admin'}
               onClick={onClose}
               className={({ isActive }) =>
                 `sidebar-link ${isActive ? 'active' : ''}`
