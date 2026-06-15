@@ -206,7 +206,7 @@ export function parseExcelFile(file: File): Promise<ImportResult> {
             renewalDate: headers.findIndex(h => h.includes('RENOVAC')),
             price: headers.findIndex(h => h.includes('PRECIO') || h.includes('PRECIOO')),
             counter: headers.findIndex(h => h.includes('CONTADOR')),
-            status: headers.findLastIndex(h => h === 'ESTADO'),
+            status: headers.reduce((last, h, i) => h === 'ESTADO' ? i : last, -1),
           }
 
           for (let i = headerRow + 1; i < rows.length; i++) {
