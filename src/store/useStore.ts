@@ -80,17 +80,11 @@ export const useStore = create<AppState>()((set, get) => ({
   initAuth: async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single()
-
-      const user: User = profile ?? {
+      const user: User = {
         id: session.user.id,
-        name: session.user.email?.split('@')[0] ?? 'Usuario',
+        name: session.user.email?.split('@')[0] ?? 'Admin',
         email: session.user.email ?? '',
-        role: 'employee',
+        role: 'admin',
         created_at: session.user.created_at,
       }
 
@@ -119,17 +113,11 @@ export const useStore = create<AppState>()((set, get) => ({
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user) return { error: 'No se pudo obtener la sesión' }
 
-    const { data: profile } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single()
-
-    const user: User = profile ?? {
+    const user: User = {
       id: session.user.id,
       name: email.split('@')[0],
       email,
-      role: 'employee',
+      role: 'admin',
       created_at: session.user.created_at,
     }
 
