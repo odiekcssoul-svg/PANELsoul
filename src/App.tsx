@@ -14,6 +14,7 @@ import Notifications from '@/pages/Notifications'
 import ActivityPage from '@/pages/Activity'
 import Security from '@/pages/Security'
 import Import from '@/pages/Import'
+import Accounting from '@/pages/Accounting'
 import { Play } from 'lucide-react'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="activity" element={<ActivityPage />} />
           <Route path="security" element={<Security />} />
           <Route path="import" element={<Import />} />
+          <Route path="accounting" element={<Accounting />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

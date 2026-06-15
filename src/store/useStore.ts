@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import {
   User, Client, StreamingAccount, Provider, GmailAccount,
-  Notification, ActivityLog,
+  Notification, ActivityLog, Transaction,
 } from '@/types'
 
 interface AppState {
@@ -60,6 +60,13 @@ interface AppState {
 
   // Activity
   logActivity: (action: string, entity: string, entityId: string, details?: string) => Promise<void>
+
+  // Transactions
+  transactions: Transaction[]
+  fetchTransactions: () => Promise<void>
+  addTransaction: (t: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>
+  updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>
+  deleteTransaction: (id: string) => Promise<void>
 }
 
 export const useStore = create<AppState>()((set, get) => ({
@@ -73,6 +80,7 @@ export const useStore = create<AppState>()((set, get) => ({
   gmailAccounts: [],
   notifications: [],
   activityLog: [],
+  transactions: [],
   dataLoading: false,
 
   // ─── AUTH ────────────────────────────────────────────────────────────────
@@ -146,6 +154,7 @@ export const useStore = create<AppState>()((set, get) => ({
       get().fetchGmail(),
       get().fetchNotifications(),
       get().fetchActivityLog(),
+      get().fetchTransactions(),
     ])
     set({ dataLoading: false })
   },
@@ -438,6 +447,50 @@ export const useStore = create<AppState>()((set, get) => ({
       .single()
     if (row) {
       set(s => ({ activityLog: [row as ActivityLog, ...s.activityLog.slice(0, 99)] }))
+    }
+  },
+
+  // ─── TRANSACTIONS ─────────────────────────────────────────────────────────
+
+  fetchTransactions: async () => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+    if (data) set({ transactions: data as Transaction[] })
+  },
+
+  addTransaction: async (data) => {
+    const { data: row, error } = await supabase
+      .from('transactions')
+      .insert(data)
+      .select()
+      .single()
+    if (!error && row) {
+      set(s => ({ transactions: [row as Transaction, ...s.transactions] }))
+      await get().logActivity('create', 'transaction', row.id,
+        `${data.type === 'income' ? 'Ingreso' : 'Gasto'}: ${data.description} $${data.amount}`)
+    }
+  },
+
+  updateTransaction: async (id, data) => {
+    const { data: row, error } = await supabase
+      .from('transactions')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single()
+    if (!error && row) {
+      set(s => ({ transactions: s.transactions.map(t => t.id === id ? row as Transaction : t) }))
+    }
+  },
+
+  deleteTransaction: async (id) => {
+    const { error } = await supabase.from('transactions').delete().eq('id', id)
+    if (!error) {
+      set(s => ({ transactions: s.transactions.filter(t => t.id !== id) }))
+      await get().logActivity('delete', 'transaction', id, 'Transacción eliminada')
     }
   },
 }))

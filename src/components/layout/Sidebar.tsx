@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Monitor, RefreshCw,
   Mail, Truck, Bell, Shield, LogOut, Play, X,
-  Activity, FileSpreadsheet,
+  Activity, FileSpreadsheet, Wallet,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 
@@ -13,6 +13,7 @@ const NAV = [
   { to: '/renewals', icon: RefreshCw, label: 'Renovaciones' },
   { to: '/gmail', icon: Mail, label: 'Correos Gmail' },
   { to: '/providers', icon: Truck, label: 'Proveedores' },
+  { to: '/accounting', icon: Wallet, label: 'Contabilidad' },
   { to: '/notifications', icon: Bell, label: 'Notificaciones' },
   { to: '/activity', icon: Activity, label: 'Actividad' },
   { to: '/import', icon: FileSpreadsheet, label: 'Importar Excel' },

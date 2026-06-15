@@ -117,3 +117,44 @@ export interface DashboardStats {
   revenueByMonth: { month: string; revenue: number }[]
   serviceDistribution: { name: string; value: number; color: string }[]
 }
+
+export type TransactionType = 'income' | 'expense'
+
+export type IncomeCategory = 'renewal' | 'new_account' | 'other_income'
+export type ExpenseCategory = 'provider' | 'tools' | 'services' | 'other_expense'
+export type TransactionCategory = IncomeCategory | ExpenseCategory
+
+export const INCOME_CATEGORIES: { value: IncomeCategory; label: string }[] = [
+  { value: 'renewal',     label: '🔄 Renovación de cuenta' },
+  { value: 'new_account', label: '✨ Cuenta nueva' },
+  { value: 'other_income',label: '💰 Otro ingreso' },
+]
+
+export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
+  { value: 'provider',      label: '🏭 Pago a proveedor' },
+  { value: 'tools',         label: '🛠️ Herramientas / Software' },
+  { value: 'services',      label: '📡 Servicios' },
+  { value: 'other_expense', label: '📦 Otro gasto' },
+]
+
+export const PAYMENT_METHODS = [
+  'Efectivo', 'Transferencia', 'OXXO', 'Arcus', 'PayPal', 'Otro',
+]
+
+export interface Transaction {
+  id: string
+  type: TransactionType
+  category: TransactionCategory
+  description: string
+  amount: number
+  date: string
+  client_id?: string
+  client_name?: string
+  streaming_account_id?: string
+  service_type?: string
+  provider_id?: string
+  payment_method: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
