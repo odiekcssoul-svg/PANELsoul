@@ -62,7 +62,7 @@ export default function Landing() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const WA_LINK = 'https://wa.me/526653929601?text=Hola%20Soul%20Streaming%2C%20me%20interesa%20un%20servicio'
+  const WA_LINK = 'https://wa.me/526613519349?text=Hola%20Soul%20Streaming%2C%20me%20interesa%20un%20servicio'
 
   return (
     <div className="min-h-screen bg-[#060610] text-white overflow-x-hidden">
