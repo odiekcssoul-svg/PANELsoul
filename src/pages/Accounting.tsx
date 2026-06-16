@@ -21,24 +21,13 @@ import {
 import { format, subMonths, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { buildWhatsAppLink } from '@/lib/whatsapp'
 
 const PAGE_SIZE = 12
 const ALL_CATS = [...INCOME_CATEGORIES, ...EXPENSE_CATEGORIES]
 const catLabel = (c: string) => ALL_CATS.find(x => x.value === c)?.label ?? c
 
 type Tab = 'resumen' | 'cobradas' | 'pendientes' | 'gastos' | 'movimientos'
-
-// ── WhatsApp ──────────────────────────────────────────────────────────────────
-function buildWA(phone: string, name: string, service: string, email: string, date: string, price: number, expired: boolean) {
-  const clean = phone.replace(/\D/g, '')
-  const num = clean.length === 10 ? `52${clean}` : clean
-  const ico: Record<string, string> = { 'Spotify': '🎵', 'YouTube Premium': '▶️', 'Disney+': '🏰', 'HBO Max': '👑', 'Prime Video': '📦', 'Netflix': '🎬', 'Crunchyroll': '⚡', 'Vix Premium': '🌟', 'Paramount+': '⭐' }
-  const i = ico[service] || '📺'
-  const msg = expired
-    ? `Hola ${name}.\n\nDetectamos que tu servicio ya venció.\n\n${i} Servicio: ${service}\n📧 Correo: ${email}\n\n💰 Importe: $${price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nPor favor comparte tu comprobante para reactivar.\n\nGracias.\nSSouL Streaming`
-    : `Hola ${name}.\n\nTe recordamos que tu servicio está próximo a vencer.\n\n${i} Servicio: ${service}\n📧 Correo: ${email}\n\n📅 Renovación: ${date}\n💰 Importe: $${price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nUna vez realizado el pago comparte tu comprobante.\n\nGracias.\nSSouL Streaming`
-  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
-}
 
 const emptyForm = {
   type: 'income' as TransactionType,
@@ -52,7 +41,7 @@ const emptyForm = {
 
 // ════════════════════════════════════════════════════════════════════════════════
 export default function Accounting() {
-  const { transactions, accounts, clients, providers, addTransaction, updateTransaction, deleteTransaction } = useStore()
+  const { transactions, accounts, clients, providers, settings, addTransaction, updateTransaction, deleteTransaction } = useStore()
 
   const [tab, setTab] = useState<Tab>('resumen')
   const [search, setSearch] = useState('')
@@ -411,7 +400,7 @@ export default function Accounting() {
                 <p className="text-center text-gray-500 text-sm py-8">🎉 Sin cuentas vencidas</p>
               ) : expiredAccounts.map(a => {
                 const daysAgo = Math.abs(Math.ceil((new Date(a.renewal_date).getTime() - now) / DAY))
-                const wa = a.client_phone ? buildWA(a.client_phone, a.client_name || '', a.service_type, a.email, formatDate(a.renewal_date), a.price, true) : ''
+                const wa = a.client_phone ? buildWhatsAppLink({ clientName: a.client_name || '', clientPhone: a.client_phone, serviceType: a.service_type, email: a.email, renewalDate: formatDate(a.renewal_date), price: a.price, isExpired: true, settings }) : ''
                 return (
                   <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/20">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
@@ -461,7 +450,7 @@ export default function Accounting() {
                 <p className="text-center text-gray-500 text-sm py-8">Sin renovaciones próximas</p>
               ) : renewingSoon.map(a => {
                 const daysLeft = Math.ceil((new Date(a.renewal_date).getTime() - now) / DAY)
-                const wa = a.client_phone ? buildWA(a.client_phone, a.client_name || '', a.service_type, a.email, formatDate(a.renewal_date), a.price, false) : ''
+                const wa = a.client_phone ? buildWhatsAppLink({ clientName: a.client_name || '', clientPhone: a.client_phone, serviceType: a.service_type, email: a.email, renewalDate: formatDate(a.renewal_date), price: a.price, isExpired: false, settings }) : ''
                 return (
                   <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/20">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>

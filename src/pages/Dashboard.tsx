@@ -50,21 +50,7 @@ function KPICard({
   )
 }
 
-// ── WhatsApp link ─────────────────────────────────────────────────────────────
-function buildWhatsApp(phone: string, name: string, service: string, email: string, date: string, price: number, expired: boolean) {
-  const clean = phone.replace(/\D/g, '')
-  const num = clean.length === 10 ? `52${clean}` : clean
-  const emoji: Record<string, string> = {
-    'Spotify': '🎵', 'YouTube Premium': '▶️', 'Disney+': '🏰',
-    'HBO Max': '👑', 'Prime Video': '📦', 'Netflix': '🎬',
-    'Crunchyroll': '⚡', 'Vix Premium': '🌟', 'Paramount+': '⭐',
-  }
-  const ico = emoji[service] || '📺'
-  const msg = expired
-    ? `Hola ${name}.\n\nDetectamos que tu servicio ya venció.\n\n${ico} Servicio: ${service}\n📧 Correo: ${email}\n\n💰 Importe de renovación: $${price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nPor favor comparte tu comprobante para reactivar tu servicio.\n\nGracias por tu preferencia.\nSSouL Streaming`
-    : `Hola ${name}.\n\nTe recordamos que tu servicio está próximo a vencer.\n\n${ico} Servicio: ${service}\n📧 Correo: ${email}\n\n📅 Fecha de renovación: ${date}\n💰 Importe: $${price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nUna vez realizado el pago comparte tu comprobante para registrar tu renovación.\n\nGracias por tu preferencia.\nSSouL Streaming`
-  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
-}
+import { buildWhatsAppLink } from '@/lib/whatsapp'
 
 // ── Tooltip personalizado ─────────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }: any) {
@@ -87,7 +73,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
-  const { clients, accounts, notifications } = useStore()
+  const { clients, accounts, notifications, settings } = useStore()
   const [revenueTab, setRevenueTab] = useState<'service' | 'status'>('service')
 
   const now = Date.now()
@@ -320,10 +306,16 @@ export default function Dashboard() {
               const isExpired = daysLeft < 0
               const isToday = daysLeft === 0
               const dateFormatted = format(parseISO(a.renewal_date), 'dd/MM/yyyy')
-              const waLink = buildWhatsApp(
-                a.client_phone || '', a.client_name || '', a.service_type,
-                a.email, dateFormatted, a.price, isExpired
-              )
+              const waLink = buildWhatsAppLink({
+                clientName: a.client_name || '',
+                clientPhone: a.client_phone || '',
+                serviceType: a.service_type,
+                email: a.email,
+                renewalDate: dateFormatted,
+                price: a.price,
+                isExpired,
+                settings,
+              })
               return (
                 <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/30 transition-colors">
                   {/* Servicio */}
@@ -390,10 +382,16 @@ export default function Dashboard() {
             ) : overdueAccounts.map(a => {
               const daysAgo = Math.abs(Math.ceil((new Date(a.renewal_date).getTime() - now) / DAY))
               const dateFormatted = format(parseISO(a.renewal_date), 'dd/MM/yyyy')
-              const waLink = buildWhatsApp(
-                a.client_phone || '', a.client_name || '', a.service_type,
-                a.email, dateFormatted, a.price, true
-              )
+              const waLink = buildWhatsAppLink({
+                clientName: a.client_name || '',
+                clientPhone: a.client_phone || '',
+                serviceType: a.service_type,
+                email: a.email,
+                renewalDate: dateFormatted,
+                price: a.price,
+                isExpired: true,
+                settings,
+              })
               return (
                 <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/30 transition-colors">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"

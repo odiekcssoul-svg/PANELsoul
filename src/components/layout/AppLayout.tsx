@@ -14,6 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/notifications':'Notificaciones',
   '/admin/activity':     'Registro de Actividad',
   '/admin/import':       'Importar Excel',
+  '/admin/settings':     'Configuración',
   '/admin/security':     'Seguridad',
 }
 

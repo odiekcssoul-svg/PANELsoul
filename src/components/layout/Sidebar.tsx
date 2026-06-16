@@ -2,22 +2,23 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Monitor, RefreshCw,
   Mail, Truck, Bell, Shield, LogOut, Play, X,
-  Activity, FileSpreadsheet, Wallet,
+  Activity, FileSpreadsheet, Wallet, Settings,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 
 const NAV = [
-  { to: '/admin',              icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/admin/clients',      icon: Users,           label: 'Clientes' },
-  { to: '/admin/accounts',     icon: Monitor,         label: 'Servicios Streaming' },
-  { to: '/admin/renewals',     icon: RefreshCw,       label: 'Renovaciones' },
-  { to: '/admin/gmail',        icon: Mail,            label: 'Correos Gmail' },
-  { to: '/admin/providers',    icon: Truck,           label: 'Proveedores' },
-  { to: '/admin/accounting',   icon: Wallet,          label: 'Contabilidad' },
-  { to: '/admin/notifications',icon: Bell,            label: 'Notificaciones' },
-  { to: '/admin/activity',     icon: Activity,        label: 'Actividad' },
-  { to: '/admin/import',       icon: FileSpreadsheet, label: 'Importar Excel' },
-  { to: '/admin/security',     icon: Shield,          label: 'Seguridad' },
+  { to: '/admin',               icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/admin/clients',       icon: Users,           label: 'Clientes' },
+  { to: '/admin/accounts',      icon: Monitor,         label: 'Servicios Streaming' },
+  { to: '/admin/renewals',      icon: RefreshCw,       label: 'Renovaciones' },
+  { to: '/admin/gmail',         icon: Mail,            label: 'Correos Gmail' },
+  { to: '/admin/providers',     icon: Truck,           label: 'Proveedores' },
+  { to: '/admin/accounting',    icon: Wallet,          label: 'Contabilidad' },
+  { to: '/admin/notifications', icon: Bell,            label: 'Notificaciones' },
+  { to: '/admin/activity',      icon: Activity,        label: 'Actividad' },
+  { to: '/admin/import',        icon: FileSpreadsheet, label: 'Importar Excel' },
+  { to: '/admin/settings',      icon: Settings,        label: 'Configuración' },
+  { to: '/admin/security',      icon: Shield,          label: 'Seguridad' },
 ]
 
 interface SidebarProps {

@@ -6,32 +6,12 @@ import { Modal } from '@/components/ui/Modal'
 import { StreamingAccount } from '@/types'
 import toast from 'react-hot-toast'
 import { SearchInput } from '@/components/ui/SearchInput'
+import { buildWhatsAppLink } from '@/lib/whatsapp'
 
 type Tab = 'today' | 'upcoming' | 'overdue' | 'all'
 
-function buildWhatsApp(a: StreamingAccount, isExpired: boolean) {
-  const phone = (a.client_phone || '').replace(/\D/g, '')
-  const num = phone.length === 10 ? `52${phone}` : phone
-  if (!num) return ''
-
-  const emoji: Record<string, string> = {
-    'Spotify': '🎵', 'YouTube Premium': '▶️', 'Disney+': '🏰',
-    'HBO Max': '👑', 'Prime Video': '📦', 'Netflix': '🎬',
-    'Crunchyroll': '⚡', 'Vix Premium': '🌟', 'Paramount+': '⭐',
-  }
-  const ico = emoji[a.service_type] || '📺'
-  const date = formatDate(a.renewal_date)
-  const name = a.client_name || 'Cliente'
-
-  const msg = isExpired
-    ? `Hola ${name}.\n\nDetectamos que tu servicio ya venció.\n\n${ico} Servicio: ${a.service_type}\n📧 Correo: ${a.email}\n\n💰 Importe de renovación: $${a.price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nPor favor comparte tu comprobante para reactivar tu servicio.\n\nGracias por tu preferencia.\nSSouL Streaming`
-    : `Hola ${name}.\n\nTe recordamos que tu servicio está próximo a vencer.\n\n${ico} Servicio: ${a.service_type}\n📧 Correo: ${a.email}\n\n📅 Fecha de renovación: ${date}\n💰 Importe: $${a.price}\n\n🏦 Banco: Arcus\nCLABE: 706969208356650024\n\nUna vez realizado el pago comparte tu comprobante para registrar tu renovación.\n\nGracias por tu preferencia.\nSSouL Streaming`
-
-  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
-}
-
 export default function Renewals() {
-  const { accounts, renewAccount } = useStore()
+  const { accounts, renewAccount, settings } = useStore()
   const [tab, setTab] = useState<Tab>('today')
   const [search, setSearch] = useState('')
   const [renewModal, setRenewModal] = useState(false)
@@ -204,7 +184,16 @@ export default function Renewals() {
                     <RefreshCw size={12} /> Renovar ahora
                   </button>
                   {a.client_phone && (() => {
-                    const waLink = buildWhatsApp(a, isOverdue)
+                    const waLink = buildWhatsAppLink({
+                      clientName: a.client_name || '',
+                      clientPhone: a.client_phone || '',
+                      serviceType: a.service_type,
+                      email: a.email,
+                      renewalDate: formatDate(a.renewal_date),
+                      price: a.price,
+                      isExpired: isOverdue,
+                      settings,
+                    })
                     return waLink ? (
                       <a
                         href={waLink}

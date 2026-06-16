@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import {
   User, Client, StreamingAccount, Provider, GmailAccount,
-  Notification, ActivityLog, Transaction,
+  Notification, ActivityLog, Transaction, Settings, DEFAULT_SETTINGS,
 } from '@/types'
 
 interface AppState {
@@ -67,6 +67,11 @@ interface AppState {
   addTransaction: (t: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => Promise<void>
   updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>
   deleteTransaction: (id: string) => Promise<void>
+
+  // Settings
+  settings: Settings
+  fetchSettings: () => Promise<void>
+  saveSettings: (data: Partial<Settings>) => Promise<void>
 }
 
 // ── Helper: obtener owner_id del usuario actual ───────────────────────────────
@@ -86,6 +91,7 @@ export const useStore = create<AppState>()((set, get) => ({
   notifications: [],
   activityLog: [],
   transactions: [],
+  settings: DEFAULT_SETTINGS,
   dataLoading: false,
 
   // ─── AUTH ────────────────────────────────────────────────────────────────
@@ -158,6 +164,7 @@ export const useStore = create<AppState>()((set, get) => ({
       get().fetchNotifications(),
       get().fetchActivityLog(),
       get().fetchTransactions(),
+      get().fetchSettings(),
     ])
     set({ dataLoading: false })
   },
@@ -425,6 +432,28 @@ export const useStore = create<AppState>()((set, get) => ({
     if (!error) {
       set(s => ({ transactions: s.transactions.filter(t => t.id !== id) }))
       await get().logActivity('delete', 'transaction', id, 'Transacción eliminada')
+    }
+  },
+
+  // ─── SETTINGS ────────────────────────────────────────────────────────────
+
+  fetchSettings: async () => {
+    const { data } = await supabase
+      .from('settings').select('*').single()
+    if (data) set({ settings: data as Settings })
+    // Si no existe, usar defaults (primer login)
+  },
+
+  saveSettings: async (data) => {
+    const owner_id = getOwnerId(get)
+    if (!owner_id) return
+    // Upsert: crea si no existe, actualiza si ya existe
+    const { data: row, error } = await supabase
+      .from('settings')
+      .upsert({ ...data, owner_id }, { onConflict: 'owner_id' })
+      .select().single()
+    if (!error && row) {
+      set({ settings: row as Settings })
     }
   },
 }))

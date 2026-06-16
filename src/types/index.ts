@@ -141,6 +141,26 @@ export const PAYMENT_METHODS = [
   'Efectivo', 'Transferencia', 'OXXO', 'Arcus', 'PayPal', 'Otro',
 ]
 
+export interface Settings {
+  id?: string
+  owner_id?: string
+  business_name: string
+  whatsapp_number: string
+  bank_name: string
+  bank_clabe: string
+  msg_renewal: string
+  msg_expired: string
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  business_name: 'Soul Streaming',
+  whatsapp_number: '',
+  bank_name: 'Arcus',
+  bank_clabe: '',
+  msg_renewal: `Hola {nombre}.\n\nTe recordamos que tu servicio está próximo a vencer.\n\n{emoji} Servicio: {servicio}\n📧 Correo: {correo}\n\n📅 Fecha de renovación: {fecha}\n💰 Importe: ${'{precio}'}\n\n🏦 Banco: {banco}\nCLABE: {clabe}\n\nUna vez realizado el pago comparte tu comprobante para registrar tu renovación.\n\nGracias por tu preferencia.\n{negocio}`,
+  msg_expired: `Hola {nombre}.\n\nDetectamos que tu servicio ya venció.\n\n{emoji} Servicio: {servicio}\n📧 Correo: {correo}\n\n💰 Importe de renovación: ${'{precio}'}\n\n🏦 Banco: {banco}\nCLABE: {clabe}\n\nPor favor comparte tu comprobante para reactivar tu servicio.\n\nGracias por tu preferencia.\n{negocio}`,
+}
+
 export interface Transaction {
   id: string
   type: TransactionType
