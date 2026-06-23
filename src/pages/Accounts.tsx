@@ -51,12 +51,14 @@ export default function Accounts() {
   const filtered = useMemo(() =>
     accounts.filter(a => {
       const q = search.toLowerCase()
+      const daysLeft = Math.ceil((new Date(a.renewal_date).getTime() - Date.now()) / 86400000)
+      const realStatus = a.status === 'suspended' ? 'suspended' : daysLeft < 0 ? 'expired' : 'active'
       const matchSearch = !search ||
         (a.client_name || '').toLowerCase().includes(q) ||
         a.email.toLowerCase().includes(q) ||
         a.service_type.toLowerCase().includes(q)
       const matchService = !filterService || a.service_type === filterService
-      const matchStatus = !filterStatus || a.status === filterStatus
+      const matchStatus = !filterStatus || realStatus === filterStatus
       return matchSearch && matchService && matchStatus
     }),
     [accounts, search, filterService, filterStatus]
@@ -204,6 +206,7 @@ export default function Accounts() {
             <tbody>
               {paginated.map(a => {
                 const daysLeft = Math.ceil((new Date(a.renewal_date).getTime() - Date.now()) / 86400000)
+                const realStatus = a.status === 'suspended' ? 'suspended' : daysLeft < 0 ? 'expired' : 'active'
                 return (
                   <tr key={a.id} className="hover:bg-dark-600/30 transition-colors">
                     <td className="table-cell">
@@ -237,8 +240,8 @@ export default function Accounts() {
                       </div>
                     </td>
                     <td className="table-cell">
-                      <span className={`badge ${getStatusColor(a.status)}`}>
-                        {getStatusLabel(a.status)}
+                      <span className={`badge ${getStatusColor(realStatus)}`}>
+                        {getStatusLabel(realStatus)}
                       </span>
                     </td>
                     <td className="table-cell">

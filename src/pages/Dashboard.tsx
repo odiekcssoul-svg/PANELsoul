@@ -81,8 +81,10 @@ export default function Dashboard() {
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
   const kpi = useMemo(() => {
-    const active = accounts.filter(a => a.status === 'active')
-    const expired = accounts.filter(a => a.status === 'expired')
+    const now = Date.now()
+    // Vencida = status expired O fecha ya pasó
+    const active = accounts.filter(a => a.status === 'active' && new Date(a.renewal_date).getTime() >= now - DAY)
+    const expired = accounts.filter(a => a.status === 'expired' || (a.status === 'active' && new Date(a.renewal_date).getTime() < now - DAY))
     const todayRen = accounts.filter(a => isRenewalToday(a.renewal_date))
     const weekRen = accounts.filter(a => isRenewalThisWeek(a.renewal_date))
     const totalRevenue = active.reduce((s, a) => s + (a.price || 0), 0)
@@ -127,7 +129,7 @@ export default function Dashboard() {
   // ── Cuentas vencidas sin renovar ─────────────────────────────────────────
   const overdueAccounts = useMemo(() => {
     return accounts
-      .filter(a => a.status === 'expired')
+      .filter(a => a.status === 'expired' || (a.status === 'active' && new Date(a.renewal_date).getTime() < now - DAY))
       .sort((a, b) => new Date(a.renewal_date).getTime() - new Date(b.renewal_date).getTime())
       .slice(0, 8)
   }, [accounts])
@@ -455,8 +457,8 @@ export default function Dashboard() {
                 const services = [...new Set(accounts.map(a => a.service_type))]
                 return services.map(svc => {
                   const svcAccounts = accounts.filter(a => a.service_type === svc)
-                  const active = svcAccounts.filter(a => a.status === 'active').length
-                  const expired = svcAccounts.filter(a => a.status === 'expired').length
+                  const active = svcAccounts.filter(a => a.status === 'active' && new Date(a.renewal_date).getTime() >= now - DAY).length
+                  const expired = svcAccounts.filter(a => a.status === 'expired' || (a.status === 'active' && new Date(a.renewal_date).getTime() < now - DAY)).length
                   const soon = svcAccounts.filter(a => {
                     const diff = new Date(a.renewal_date).getTime() - now
                     return diff >= 0 && diff <= 7 * DAY

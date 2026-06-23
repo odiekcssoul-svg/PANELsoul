@@ -59,8 +59,12 @@ export default function Accounting() {
   const thisMonth = format(new Date(), 'yyyy-MM')
 
   // ── Datos derivados de cuentas ─────────────────────────────────────────
-  const activeAccounts = useMemo(() => accounts.filter(a => a.status === 'active'), [accounts])
-  const expiredAccounts = useMemo(() => accounts.filter(a => a.status === 'expired'), [accounts])
+  const activeAccounts = useMemo(() =>
+    accounts.filter(a => a.status === 'active' && new Date(a.renewal_date).getTime() >= now - DAY),
+  [accounts])
+  const expiredAccounts = useMemo(() =>
+    accounts.filter(a => a.status === 'expired' || (a.status === 'active' && new Date(a.renewal_date).getTime() < now - DAY)),
+  [accounts])
   const renewingSoon = useMemo(() =>
     accounts.filter(a => {
       const diff = new Date(a.renewal_date).getTime() - now
