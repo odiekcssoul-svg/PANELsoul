@@ -313,6 +313,28 @@ export const useStore = create<AppState>()((set, get) => ({
         clients: undefined,
       }
       set(s => ({ accounts: s.accounts.map(a => a.id === id ? account as StreamingAccount : a) }))
+
+      // ── Registrar ingreso automáticamente en contabilidad ──
+      const owner_id = getOwnerId(get)
+      if ((row as any).price > 0) {
+        await supabase.from('transactions').insert({
+          owner_id,
+          type: 'income',
+          category: 'renewal',
+          description: `Renovación ${(row as any).service_type} — ${(row as any).clients?.name || 'Cliente'}`,
+          amount: (row as any).price,
+          date: new Date().toISOString().split('T')[0],
+          client_id: (row as any).client_id ?? null,
+          client_name: (row as any).clients?.name ?? '',
+          streaming_account_id: id,
+          service_type: (row as any).service_type,
+          payment_method: 'Efectivo',
+          notes: `Renovado hasta ${newDate}`,
+        })
+        // Actualizar lista de transacciones en el store
+        await get().fetchTransactions()
+      }
+
       await get().addNotification({
         type: 'renewal', title: 'Cuenta renovada',
         message: `Cuenta renovada hasta ${newDate}`, read: false, related_id: id,
