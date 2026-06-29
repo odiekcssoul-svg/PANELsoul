@@ -85,10 +85,10 @@ export default function GiftRedeem() {
     const { browser, os, device } = getDeviceInfo()
 
     try {
-      // Insertar siempre (anon puede insertar según RLS)
       const { data: newClient, error: insertError } = await supabase
         .from('gift_clients')
         .insert({
+          owner_id: null,   // se actualiza después cuando el admin la vincule
           name: clientData.name.trim(),
           phone: fullPhone,
           email: clientData.email.trim() || null,
@@ -99,11 +99,10 @@ export default function GiftRedeem() {
         .single()
 
       if (insertError) {
-        // Si ya existe (unique constraint) buscar por teléfono usando función RPC
-        // O simplemente continuar con un ID temporal local
-        console.error('Insert error:', insertError.message)
-        // Generar ID temporal para continuar el flujo
-        setClientId('temp-' + Date.now())
+        console.error('Insert client error:', insertError.message)
+        // Si falla (ej: duplicado), igual dejamos continuar
+        // Guardamos un ID local temporal — el canje se registra sin client_id
+        setClientId(null)
       } else {
         setClientId(newClient.id)
       }
@@ -171,12 +170,11 @@ export default function GiftRedeem() {
       }
 
       const now = new Date().toISOString()
-      const realClientId = clientId?.startsWith('temp-') ? null : clientId
 
       // 5. Marcar inventario como entregado
       const { error: updateErr } = await supabase
         .from('gift_inventory')
-        .update({ status: 'delivered', delivered_to: realClientId, delivered_at: now })
+        .update({ status: 'delivered', delivered_to: clientId, delivered_at: now })
         .eq('id', inventory.id)
         .eq('status', 'available') // evitar race condition
 
@@ -186,10 +184,10 @@ export default function GiftRedeem() {
         return
       }
 
-      // 6. Registrar el canje
+      // 6. Registrar el canje con toda la info del cliente
       await supabase.from('gift_redemptions').insert({
-        owner_id: giftCode.owner_id,
-        client_id: realClientId,
+        owner_id: giftCode.owner_id,   // vinculado al admin dueño del código
+        client_id: clientId,
         gift_code_id: giftCode.id,
         inventory_id: inventory.id,
         code_used: codeTrimmed,
@@ -200,7 +198,16 @@ export default function GiftRedeem() {
         status: 'completed',
       })
 
-      // 7. Incrementar contador
+      // 7. Actualizar el owner_id en el cliente si era null
+      if (clientId && giftCode.owner_id) {
+        await supabase
+          .from('gift_clients')
+          .update({ owner_id: giftCode.owner_id })
+          .eq('id', clientId)
+          .is('owner_id', null)
+      }
+
+      // 8. Incrementar contador
       await supabase
         .from('gift_codes')
         .update({ redemption_count: giftCode.redemption_count + 1 })

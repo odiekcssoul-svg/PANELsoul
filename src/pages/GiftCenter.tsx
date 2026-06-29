@@ -80,6 +80,26 @@ export default function GiftCenter() {
 
   useEffect(() => { if (ownerId) loadAll() }, [ownerId])
 
+  // ── Realtime: sincronizar cuando llegue un nuevo canje ───────────────────
+  useEffect(() => {
+    if (!ownerId) return
+    const channel = supabase
+      .channel('gift-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_redemptions' }, () => {
+        loadAll()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_clients' }, () => {
+        supabase.from('gift_clients').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
+          .then(({ data }) => { if (data) setClients(data as GiftClient[]) })
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_inventory' }, () => {
+        supabase.from('gift_inventory').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
+          .then(({ data }) => { if (data) setInventory(data as GiftInventory[]) })
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [ownerId])
+
   async function loadAll() {
     setLoading(true)
     const [c, cl, inv, r] = await Promise.all([
