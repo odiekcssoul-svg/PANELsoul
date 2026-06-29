@@ -17,6 +17,8 @@ import Security from '@/pages/Security'
 import Import from '@/pages/Import'
 import Accounting from '@/pages/Accounting'
 import SettingsPage from '@/pages/SettingsPage'
+import GiftCenter from '@/pages/GiftCenter'
+import GiftRedeem from '@/pages/GiftRedeem'
 import { Play } from 'lucide-react'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -70,6 +72,10 @@ export default function App() {
         {/* Landing pública */}
         <Route path="/" element={<Landing />} />
 
+        {/* Página pública de canje */}
+        <Route path="/canjear" element={<GiftRedeem />} />
+        <Route path="/redeem" element={<GiftRedeem />} />
+
         {/* Admin login */}
         <Route path="/admin/login" element={<Login />} />
 
@@ -94,6 +100,7 @@ export default function App() {
           <Route path="import" element={<Import />} />
           <Route path="accounting" element={<Accounting />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="gift-center" element={<GiftCenter />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

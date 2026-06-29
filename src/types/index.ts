@@ -178,3 +178,72 @@ export interface Transaction {
   created_at: string
   updated_at: string
 }
+
+// ── Gift Center ───────────────────────────────────────────────────────────────
+
+export interface GiftCode {
+  id: string
+  owner_id?: string
+  name: string
+  code: string
+  product: string
+  description?: string
+  start_date: string
+  expiry_date?: string
+  max_redemptions: number
+  max_per_user: number
+  redemption_count: number
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
+export interface GiftInventory {
+  id: string
+  owner_id?: string
+  gift_code_id?: string
+  product: string
+  email: string
+  password: string
+  status: 'available' | 'delivered' | 'suspended'
+  delivered_to?: string
+  delivered_at?: string
+  created_at: string
+}
+
+export interface GiftClient {
+  id: string
+  owner_id?: string
+  name: string
+  phone: string
+  email?: string
+  ip_address?: string
+  country?: string
+  city?: string
+  device?: string
+  browser?: string
+  os?: string
+  tags: string[]
+  notes?: string
+  created_at: string
+  last_seen: string
+}
+
+export interface GiftRedemption {
+  id: string
+  owner_id?: string
+  client_id: string
+  gift_code_id?: string
+  inventory_id?: string
+  code_used: string
+  product?: string
+  account_email?: string
+  account_password?: string
+  ip_address?: string
+  country?: string
+  city?: string
+  browser?: string
+  device?: string
+  status: 'completed' | 'failed' | 'pending'
+  redeemed_at: string
+}

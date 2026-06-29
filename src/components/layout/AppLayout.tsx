@@ -10,6 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/renewals':     'Renovaciones',
   '/admin/gmail':        'Correos Gmail',
   '/admin/providers':    'Proveedores',
+  '/admin/gift-center':  '🎁 Centro de Canje',
   '/admin/accounting':   'Contabilidad',
   '/admin/notifications':'Notificaciones',
   '/admin/activity':     'Registro de Actividad',
