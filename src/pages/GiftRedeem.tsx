@@ -60,7 +60,6 @@ export default function GiftRedeem() {
   const [clientData, setClientData] = useState<ClientData>({
     name: '', countryCode: '+52', phone: '', email: '', accepted: false,
   })
-  const [clientId, setClientId] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -80,150 +79,50 @@ export default function GiftRedeem() {
       setError('Ingresa un número de teléfono válido'); return
     }
     if (!clientData.accepted) { setError('Debes aceptar el tratamiento de datos'); return }
-
     setLoading(true)
-    const { browser, os, device } = getDeviceInfo()
-
-    try {
-      const { data: newClient, error: insertError } = await supabase
-        .from('gift_clients')
-        .insert({
-          owner_id: null,   // se actualiza después cuando el admin la vincule
-          name: clientData.name.trim(),
-          phone: fullPhone,
-          email: clientData.email.trim() || null,
-          browser, os, device,
-          tags: [],
-        })
-        .select('id')
-        .single()
-
-      if (insertError) {
-        console.error('Insert client error:', insertError.message)
-        // Si falla (ej: duplicado), igual dejamos continuar
-        // Guardamos un ID local temporal — el canje se registra sin client_id
-        setClientId(null)
-      } else {
-        setClientId(newClient.id)
-      }
-
-      setLoading(false)
-      setStep('code')
-    } catch (err: any) {
-      setError('Error al registrar. Verifica tu conexión e intenta de nuevo.')
-      setLoading(false)
-    }
+    // Solo avanzar al paso 2 — el cliente se crea al momento del canje via RPC
+    setLoading(false)
+    setStep('code')
   }
 
-  // ── Paso 2: Canjear código ────────────────────────────────────────────────
+  // ── Paso 2: Canjear código via RPC (SECURITY DEFINER — bypasea RLS) ───────
   async function handleRedeem(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     if (!code.trim()) { setError('Ingresa un código'); return }
 
     setLoading(true)
-    const codeTrimmed = code.trim().toUpperCase()
     const { browser, os, device } = getDeviceInfo()
 
-    try {
-      // 1. Buscar código activo
-      const { data: giftCode, error: codeError } = await supabase
-        .from('gift_codes')
-        .select('*')
-        .eq('code', codeTrimmed)
-        .eq('status', 'active')
-        .maybeSingle()
+    const { data, error } = await supabase.rpc('redeem_gift_code', {
+      p_code:         code.trim().toUpperCase(),
+      p_client_name:  clientData.name.trim(),
+      p_client_phone: fullPhone,
+      p_client_email: clientData.email.trim() || null,
+      p_browser:      browser,
+      p_os:           os,
+      p_device:       device,
+    })
 
-      if (codeError || !giftCode) {
-        setError('Código inválido o inactivo. Verifica e intenta de nuevo.')
-        setLoading(false)
-        return
-      }
-
-      // 2. Verificar expiración
-      if (giftCode.expiry_date && new Date(giftCode.expiry_date) < new Date()) {
-        setError('Este código ha expirado.')
-        setLoading(false)
-        return
-      }
-
-      // 3. Verificar límite total
-      if (giftCode.max_redemptions > 0 && giftCode.redemption_count >= giftCode.max_redemptions) {
-        setError('Este código ya alcanzó el límite de canjes.')
-        setLoading(false)
-        return
-      }
-
-      // 4. Buscar cuenta disponible
-      const { data: inventory, error: invError } = await supabase
-        .from('gift_inventory')
-        .select('*')
-        .eq('owner_id', giftCode.owner_id)
-        .eq('status', 'available')
-        .limit(1)
-        .maybeSingle()
-
-      if (invError || !inventory) {
-        setError('No hay cuentas disponibles en este momento. Contacta a soporte.')
-        setLoading(false)
-        return
-      }
-
-      const now = new Date().toISOString()
-
-      // 5. Marcar inventario como entregado
-      const { error: updateErr } = await supabase
-        .from('gift_inventory')
-        .update({ status: 'delivered', delivered_to: clientId, delivered_at: now })
-        .eq('id', inventory.id)
-        .eq('status', 'available') // evitar race condition
-
-      if (updateErr) {
-        setError('Error al procesar el canje. Intenta de nuevo.')
-        setLoading(false)
-        return
-      }
-
-      // 6. Registrar el canje con toda la info del cliente
-      await supabase.from('gift_redemptions').insert({
-        owner_id: giftCode.owner_id,   // vinculado al admin dueño del código
-        client_id: clientId,
-        gift_code_id: giftCode.id,
-        inventory_id: inventory.id,
-        code_used: codeTrimmed,
-        product: inventory.product,
-        account_email: inventory.email,
-        account_password: inventory.password,
-        browser, os, device,
-        status: 'completed',
-      })
-
-      // 7. Actualizar el owner_id en el cliente si era null
-      if (clientId && giftCode.owner_id) {
-        await supabase
-          .from('gift_clients')
-          .update({ owner_id: giftCode.owner_id })
-          .eq('id', clientId)
-          .is('owner_id', null)
-      }
-
-      // 8. Incrementar contador
-      await supabase
-        .from('gift_codes')
-        .update({ redemption_count: giftCode.redemption_count + 1 })
-        .eq('id', giftCode.id)
-
-      setResult({
-        product: inventory.product,
-        email: inventory.email,
-        password: inventory.password,
-        redeemed_at: now,
-      })
-      setStep('result')
-    } catch (err: any) {
-      setError('Ocurrió un error inesperado. Intenta de nuevo.')
-    }
     setLoading(false)
+
+    if (error || !data) {
+      setError('Error de conexión. Intenta de nuevo.')
+      return
+    }
+
+    if (!data.success) {
+      setError(data.error || 'Error al canjear el código.')
+      return
+    }
+
+    setResult({
+      product:     data.product,
+      email:       data.email,
+      password:    data.password,
+      redeemed_at: data.redeemed_at,
+    })
+    setStep('result')
   }
 
   function copyAll() {

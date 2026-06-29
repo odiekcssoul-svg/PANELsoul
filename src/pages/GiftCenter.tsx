@@ -85,33 +85,77 @@ export default function GiftCenter() {
     if (!ownerId) return
     const channel = supabase
       .channel('gift-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_redemptions' }, () => {
-        loadAll()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_clients' }, () => {
-        supabase.from('gift_clients').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
-          .then(({ data }) => { if (data) setClients(data as GiftClient[]) })
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_inventory' }, () => {
-        supabase.from('gift_inventory').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
-          .then(({ data }) => { if (data) setInventory(data as GiftInventory[]) })
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_redemptions' }, () => { loadAll() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_clients' }, () => { loadAll() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_inventory' }, () => { loadAll() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gift_codes' }, () => { loadAll() })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [ownerId])
 
   async function loadAll() {
+    if (!ownerId) return
     setLoading(true)
-    const [c, cl, inv, r] = await Promise.all([
-      supabase.from('gift_codes').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false }),
-      supabase.from('gift_clients').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false }),
-      supabase.from('gift_inventory').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false }),
-      supabase.from('gift_redemptions').select('*').eq('owner_id', ownerId).order('redeemed_at', { ascending: false }),
-    ])
-    if (c.data) setCodes(c.data as GiftCode[])
-    if (cl.data) setClients(cl.data as GiftClient[])
-    if (inv.data) setInventory(inv.data as GiftInventory[])
-    if (r.data) setRedemptions(r.data as GiftRedemption[])
+
+    // Cargar códigos primero para tener los IDs
+    const { data: codesData } = await supabase
+      .from('gift_codes')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false })
+
+    if (codesData) setCodes(codesData as GiftCode[])
+
+    const codeIds = (codesData ?? []).map((c: any) => c.id)
+
+    // Cargar inventario
+    const { data: invData } = await supabase
+      .from('gift_inventory')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .order('created_at', { ascending: false })
+
+    if (invData) setInventory(invData as GiftInventory[])
+
+    // Cargar redemptions — buscar por owner_id O por gift_code_id de mis códigos
+    let redemptionQuery = supabase
+      .from('gift_redemptions')
+      .select('*')
+      .order('redeemed_at', { ascending: false })
+
+    if (codeIds.length > 0) {
+      redemptionQuery = redemptionQuery.or(
+        `owner_id.eq.${ownerId},owner_id.is.null,gift_code_id.in.(${codeIds.join(',')})`
+      )
+    } else {
+      redemptionQuery = redemptionQuery.or(`owner_id.eq.${ownerId},owner_id.is.null`)
+    }
+
+    const { data: redData, error: redError } = await redemptionQuery
+
+    if (redError) console.error('Redemptions error:', redError.message)
+    if (redData) setRedemptions(redData as GiftRedemption[])
+
+    // Cargar clientes vinculados a mis canjes o directamente a mí
+    const clientIds = [...new Set((redData ?? []).map((r: any) => r.client_id).filter(Boolean))]
+
+    let clientQuery = supabase
+      .from('gift_clients')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (clientIds.length > 0) {
+      clientQuery = clientQuery.or(
+        `owner_id.eq.${ownerId},owner_id.is.null,id.in.(${clientIds.join(',')})`
+      )
+    } else {
+      clientQuery = clientQuery.or(`owner_id.eq.${ownerId},owner_id.is.null`)
+    }
+
+    const { data: clientData, error: clientError } = await clientQuery
+    if (clientError) console.error('Clients error:', clientError.message)
+    if (clientData) setClients(clientData as GiftClient[])
+
     setLoading(false)
   }
 
