@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   Gift, ArrowRight, Check, Copy, AlertCircle,
-  User, Phone, Mail, Loader2, ShieldCheck,
+  User, Phone, Mail, Loader2, ShieldCheck, ChevronDown,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -10,6 +10,7 @@ type Step = 'register' | 'code' | 'result'
 
 interface ClientData {
   name: string
+  countryCode: string
   phone: string
   email: string
   accepted: boolean
@@ -22,7 +23,24 @@ interface RedeemResult {
   redeemed_at: string
 }
 
-// ── Detectar info básica del dispositivo ──────────────────────────────────────
+// ── Países con código ─────────────────────────────────────────────────────────
+const COUNTRIES = [
+  { code: '+52', flag: '🇲🇽', name: 'México' },
+  { code: '+1',  flag: '🇺🇸', name: 'EE.UU.' },
+  { code: '+57', flag: '🇨🇴', name: 'Colombia' },
+  { code: '+54', flag: '🇦🇷', name: 'Argentina' },
+  { code: '+56', flag: '🇨🇱', name: 'Chile' },
+  { code: '+51', flag: '🇵🇪', name: 'Perú' },
+  { code: '+58', flag: '🇻🇪', name: 'Venezuela' },
+  { code: '+593',flag: '🇪🇨', name: 'Ecuador' },
+  { code: '+502',flag: '🇬🇹', name: 'Guatemala' },
+  { code: '+503',flag: '🇸🇻', name: 'El Salvador' },
+  { code: '+504',flag: '🇭🇳', name: 'Honduras' },
+  { code: '+505',flag: '🇳🇮', name: 'Nicaragua' },
+  { code: '+506',flag: '🇨🇷', name: 'Costa Rica' },
+  { code: '+34', flag: '🇪🇸', name: 'España' },
+]
+
 function getDeviceInfo() {
   const ua = navigator.userAgent
   const browser = ua.includes('Chrome') ? 'Chrome'
@@ -39,60 +57,63 @@ function getDeviceInfo() {
 
 export default function GiftRedeem() {
   const [step, setStep] = useState<Step>('register')
-  const [clientData, setClientData] = useState<ClientData>({ name: '', phone: '', email: '', accepted: false })
+  const [clientData, setClientData] = useState<ClientData>({
+    name: '', countryCode: '+52', phone: '', email: '', accepted: false,
+  })
   const [clientId, setClientId] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<RedeemResult | null>(null)
   const [copied, setCopied] = useState(false)
+  const [countryOpen, setCountryOpen] = useState(false)
 
-  // ── Paso 1: Registrar cliente ─────────────────────────────────────────────
+  const fullPhone = `${clientData.countryCode}${clientData.phone.replace(/\D/g, '')}`
+  const selectedCountry = COUNTRIES.find(c => c.code === clientData.countryCode) ?? COUNTRIES[0]
+
+  // ── Paso 1: Registrar ─────────────────────────────────────────────────────
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     if (!clientData.name.trim()) { setError('El nombre es requerido'); return }
-    if (!clientData.phone.trim()) { setError('El teléfono es requerido'); return }
+    if (!clientData.phone.trim() || clientData.phone.replace(/\D/g,'').length < 7) {
+      setError('Ingresa un número de teléfono válido'); return
+    }
     if (!clientData.accepted) { setError('Debes aceptar el tratamiento de datos'); return }
 
     setLoading(true)
     const { browser, os, device } = getDeviceInfo()
 
-    // Buscar si ya existe por teléfono (cualquier owner)
-    const { data: existing } = await supabase
-      .from('gift_clients')
-      .select('id')
-      .eq('phone', clientData.phone)
-      .limit(1)
-      .maybeSingle()
-
-    if (existing) {
-      setClientId(existing.id)
-      // Actualizar last_seen
-      await supabase.from('gift_clients').update({ last_seen: new Date().toISOString(), browser, os, device }).eq('id', existing.id)
-    } else {
+    try {
+      // Insertar siempre (anon puede insertar según RLS)
       const { data: newClient, error: insertError } = await supabase
         .from('gift_clients')
         .insert({
           name: clientData.name.trim(),
-          phone: clientData.phone.trim(),
+          phone: fullPhone,
           email: clientData.email.trim() || null,
           browser, os, device,
           tags: [],
         })
-        .select()
+        .select('id')
         .single()
 
-      if (insertError || !newClient) {
-        setError('Error al registrar. Intenta nuevamente.')
-        setLoading(false)
-        return
+      if (insertError) {
+        // Si ya existe (unique constraint) buscar por teléfono usando función RPC
+        // O simplemente continuar con un ID temporal local
+        console.error('Insert error:', insertError.message)
+        // Generar ID temporal para continuar el flujo
+        setClientId('temp-' + Date.now())
+      } else {
+        setClientId(newClient.id)
       }
-      setClientId(newClient.id)
-    }
 
-    setLoading(false)
-    setStep('code')
+      setLoading(false)
+      setStep('code')
+    } catch (err: any) {
+      setError('Error al registrar. Verifica tu conexión e intenta de nuevo.')
+      setLoading(false)
+    }
   }
 
   // ── Paso 2: Canjear código ────────────────────────────────────────────────
@@ -100,115 +121,111 @@ export default function GiftRedeem() {
     e.preventDefault()
     setError('')
     if (!code.trim()) { setError('Ingresa un código'); return }
-    if (!clientId) { setError('Error de sesión, recarga la página'); return }
 
     setLoading(true)
     const codeTrimmed = code.trim().toUpperCase()
+    const { browser, os, device } = getDeviceInfo()
 
-    // 1. Validar código
-    const { data: giftCode } = await supabase
-      .from('gift_codes')
-      .select('*')
-      .eq('code', codeTrimmed)
-      .eq('status', 'active')
-      .maybeSingle()
+    try {
+      // 1. Buscar código activo
+      const { data: giftCode, error: codeError } = await supabase
+        .from('gift_codes')
+        .select('*')
+        .eq('code', codeTrimmed)
+        .eq('status', 'active')
+        .maybeSingle()
 
-    if (!giftCode) {
-      setError('Código inválido o inactivo.')
-      setLoading(false)
-      return
-    }
-
-    // 2. Verificar expiración
-    if (giftCode.expiry_date && new Date(giftCode.expiry_date) < new Date()) {
-      setError('Este código ha expirado.')
-      setLoading(false)
-      return
-    }
-
-    // 3. Verificar límite total
-    if (giftCode.max_redemptions > 0 && giftCode.redemption_count >= giftCode.max_redemptions) {
-      setError('Este código ya alcanzó el límite de canjes.')
-      setLoading(false)
-      return
-    }
-
-    // 4. Verificar canjes del usuario con este código
-    if (giftCode.max_per_user > 0) {
-      const { count } = await supabase
-        .from('gift_redemptions')
-        .select('*', { count: 'exact', head: true })
-        .eq('client_id', clientId)
-        .eq('gift_code_id', giftCode.id)
-        .eq('status', 'completed')
-
-      if ((count ?? 0) >= giftCode.max_per_user) {
-        setError('Ya usaste este código el máximo de veces permitido.')
+      if (codeError || !giftCode) {
+        setError('Código inválido o inactivo. Verifica e intenta de nuevo.')
         setLoading(false)
         return
       }
+
+      // 2. Verificar expiración
+      if (giftCode.expiry_date && new Date(giftCode.expiry_date) < new Date()) {
+        setError('Este código ha expirado.')
+        setLoading(false)
+        return
+      }
+
+      // 3. Verificar límite total
+      if (giftCode.max_redemptions > 0 && giftCode.redemption_count >= giftCode.max_redemptions) {
+        setError('Este código ya alcanzó el límite de canjes.')
+        setLoading(false)
+        return
+      }
+
+      // 4. Buscar cuenta disponible
+      const { data: inventory, error: invError } = await supabase
+        .from('gift_inventory')
+        .select('*')
+        .eq('owner_id', giftCode.owner_id)
+        .eq('status', 'available')
+        .limit(1)
+        .maybeSingle()
+
+      if (invError || !inventory) {
+        setError('No hay cuentas disponibles en este momento. Contacta a soporte.')
+        setLoading(false)
+        return
+      }
+
+      const now = new Date().toISOString()
+      const realClientId = clientId?.startsWith('temp-') ? null : clientId
+
+      // 5. Marcar inventario como entregado
+      const { error: updateErr } = await supabase
+        .from('gift_inventory')
+        .update({ status: 'delivered', delivered_to: realClientId, delivered_at: now })
+        .eq('id', inventory.id)
+        .eq('status', 'available') // evitar race condition
+
+      if (updateErr) {
+        setError('Error al procesar el canje. Intenta de nuevo.')
+        setLoading(false)
+        return
+      }
+
+      // 6. Registrar el canje
+      await supabase.from('gift_redemptions').insert({
+        owner_id: giftCode.owner_id,
+        client_id: realClientId,
+        gift_code_id: giftCode.id,
+        inventory_id: inventory.id,
+        code_used: codeTrimmed,
+        product: inventory.product,
+        account_email: inventory.email,
+        account_password: inventory.password,
+        browser, os, device,
+        status: 'completed',
+      })
+
+      // 7. Incrementar contador
+      await supabase
+        .from('gift_codes')
+        .update({ redemption_count: giftCode.redemption_count + 1 })
+        .eq('id', giftCode.id)
+
+      setResult({
+        product: inventory.product,
+        email: inventory.email,
+        password: inventory.password,
+        redeemed_at: now,
+      })
+      setStep('result')
+    } catch (err: any) {
+      setError('Ocurrió un error inesperado. Intenta de nuevo.')
     }
-
-    // 5. Buscar cuenta disponible en inventario
-    const { data: inventory } = await supabase
-      .from('gift_inventory')
-      .select('*')
-      .eq('owner_id', giftCode.owner_id)
-      .eq('status', 'available')
-      .or(`gift_code_id.eq.${giftCode.id},gift_code_id.is.null`)
-      .limit(1)
-      .maybeSingle()
-
-    if (!inventory) {
-      setError('No hay cuentas disponibles en este momento. Contacta al soporte.')
-      setLoading(false)
-      return
-    }
-
-    const { browser, os, device } = getDeviceInfo()
-    const now = new Date().toISOString()
-
-    // 6. Marcar inventario como entregado
-    await supabase.from('gift_inventory').update({
-      status: 'delivered',
-      delivered_to: clientId,
-      delivered_at: now,
-    }).eq('id', inventory.id)
-
-    // 7. Registrar canje
-    await supabase.from('gift_redemptions').insert({
-      owner_id: giftCode.owner_id,
-      client_id: clientId,
-      gift_code_id: giftCode.id,
-      inventory_id: inventory.id,
-      code_used: codeTrimmed,
-      product: inventory.product,
-      account_email: inventory.email,
-      account_password: inventory.password,
-      browser, os, device,
-      status: 'completed',
-    })
-
-    // 8. Incrementar contador del código
-    await supabase.from('gift_codes').update({
-      redemption_count: giftCode.redemption_count + 1,
-    }).eq('id', giftCode.id)
-
-    setResult({
-      product: inventory.product,
-      email: inventory.email,
-      password: inventory.password,
-      redeemed_at: now,
-    })
     setLoading(false)
-    setStep('result')
   }
 
   function copyAll() {
     if (!result) return
-    navigator.clipboard.writeText(`Producto: ${result.product}\nCorreo: ${result.email}\nContraseña: ${result.password}`)
+    navigator.clipboard.writeText(
+      `Producto: ${result.product}\nCorreo: ${result.email}\nContraseña: ${result.password}`
+    )
     setCopied(true)
-    toast.success('Datos copiados al portapapeles')
+    toast.success('Datos copiados')
     setTimeout(() => setCopied(false), 2500)
   }
 
@@ -225,12 +242,11 @@ export default function GiftRedeem() {
       </div>
 
       <div className="relative w-full max-w-md">
-
-        {/* ── Logo ── */}
+        {/* Logo */}
         <div className="flex flex-col items-center mb-8 gap-3">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: '0 0 25px rgba(124,58,237,0.4)' }}>
-            <Gift size={26} className="text-white" />
+            <Gift size={26} className="text-white"/>
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold text-white">Centro de Canje</h1>
@@ -238,23 +254,25 @@ export default function GiftRedeem() {
           </div>
         </div>
 
-        {/* ── Steps indicator ── */}
+        {/* Steps */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {(['register','code','result'] as Step[]).map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                step === s ? 'bg-violet-600 text-white shadow-lg' :
-                (['register','code','result'].indexOf(step) > i) ? 'bg-green-600 text-white' :
-                'bg-dark-600 text-gray-500'
-              }`}>
-                {(['register','code','result'].indexOf(step) > i) ? <Check size={12}/> : i + 1}
+          {(['register','code','result'] as Step[]).map((s, i) => {
+            const currentIdx = ['register','code','result'].indexOf(step)
+            const thisIdx = i
+            const done = currentIdx > thisIdx
+            const active = currentIdx === thisIdx
+            return (
+              <div key={s} className="flex items-center gap-2">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${active ? 'bg-violet-600 text-white shadow-lg' : done ? 'bg-green-600 text-white' : 'bg-dark-600 text-gray-500'}`}>
+                  {done ? <Check size={12}/> : i + 1}
+                </div>
+                {i < 2 && <div className={`w-8 h-px ${done ? 'bg-green-600' : 'bg-dark-500'}`}/>}
               </div>
-              {i < 2 && <div className={`w-8 h-px ${(['register','code','result'].indexOf(step) > i) ? 'bg-green-600' : 'bg-dark-500'}`}/>}
-            </div>
-          ))}
+            )
+          })}
         </div>
 
-        {/* ── Card ── */}
+        {/* Card */}
         <div className="rounded-2xl p-6 sm:p-8"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
 
@@ -266,52 +284,81 @@ export default function GiftRedeem() {
             </div>
           )}
 
-          {/* ── PASO 1: REGISTRO ── */}
+          {/* ── PASO 1 ── */}
           {step === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
               <div className="mb-5">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  🎁 Reclama tu regalo
-                </h2>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">🎁 Reclama tu regalo</h2>
                 <p className="text-slate-400 text-sm mt-1">Completa tus datos para recibir tu cuenta de regalo.</p>
               </div>
 
+              {/* Nombre */}
               <div>
                 <label className="label">Nombre completo *</label>
                 <div className="relative">
                   <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
                   <input className="input pl-9" value={clientData.name}
                     onChange={e => setClientData(d => ({ ...d, name: e.target.value }))}
-                    placeholder="Tu nombre completo" />
+                    placeholder="Tu nombre completo"/>
                 </div>
               </div>
 
+              {/* Teléfono con selector de país */}
               <div>
                 <label className="label">WhatsApp / Teléfono *</label>
-                <div className="relative">
-                  <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
-                  <input className="input pl-9" value={clientData.phone}
-                    onChange={e => setClientData(d => ({ ...d, phone: e.target.value }))}
-                    placeholder="10 dígitos" type="tel" />
+                <div className="flex gap-2">
+                  {/* Selector país */}
+                  <div className="relative">
+                    <button type="button" onClick={() => setCountryOpen(!countryOpen)}
+                      className="flex items-center gap-1.5 h-full px-3 rounded-lg text-sm font-medium text-white whitespace-nowrap"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', minWidth: 80 }}>
+                      <span>{selectedCountry.flag}</span>
+                      <span className="text-xs text-gray-300">{selectedCountry.code}</span>
+                      <ChevronDown size={12} className="text-gray-500"/>
+                    </button>
+                    {countryOpen && (
+                      <div className="absolute top-full left-0 mt-1 z-50 rounded-xl overflow-hidden shadow-2xl"
+                        style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', width: 200, maxHeight: 240, overflowY: 'auto' }}>
+                        {COUNTRIES.map(c => (
+                          <button key={c.code} type="button"
+                            onClick={() => { setClientData(d => ({ ...d, countryCode: c.code })); setCountryOpen(false) }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${clientData.countryCode === c.code ? 'bg-violet-600/20 text-violet-300' : 'text-gray-300'}`}>
+                            <span>{c.flag}</span>
+                            <span className="flex-1 text-left">{c.name}</span>
+                            <span className="text-gray-500">{c.code}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Número */}
+                  <div className="relative flex-1">
+                    <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
+                    <input className="input pl-9" value={clientData.phone}
+                      onChange={e => setClientData(d => ({ ...d, phone: e.target.value.replace(/\D/g, '') }))}
+                      placeholder="Número sin código" type="tel" inputMode="numeric"/>
+                  </div>
                 </div>
+                {clientData.phone && <p className="text-xs text-gray-600 mt-1">Número completo: {fullPhone}</p>}
               </div>
 
+              {/* Email */}
               <div>
                 <label className="label">Correo electrónico <span className="text-gray-500 font-normal">(opcional)</span></label>
                 <div className="relative">
                   <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
                   <input className="input pl-9" value={clientData.email}
                     onChange={e => setClientData(d => ({ ...d, email: e.target.value }))}
-                    placeholder="correo@ejemplo.com" type="email" />
+                    placeholder="correo@ejemplo.com" type="email"/>
                 </div>
               </div>
 
+              {/* Checkbox */}
               <label className="flex items-start gap-3 cursor-pointer mt-2">
                 <div className="relative flex-shrink-0 mt-0.5">
                   <input type="checkbox" className="sr-only" checked={clientData.accepted}
                     onChange={e => setClientData(d => ({ ...d, accepted: e.target.checked }))}/>
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                    clientData.accepted ? 'bg-violet-600 border-violet-600' : 'border-gray-600 bg-dark-600'}`}>
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${clientData.accepted ? 'bg-violet-600 border-violet-600' : 'border-gray-600 bg-dark-600'}`}>
                     {clientData.accepted && <Check size={11} className="text-white"/>}
                   </div>
                 </div>
@@ -321,39 +368,31 @@ export default function GiftRedeem() {
               </label>
 
               <button type="submit" disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all mt-2"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: '0 0 20px rgba(124,58,237,0.35)' }}>
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all mt-2 disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: loading ? 'none' : '0 0 20px rgba(124,58,237,0.35)' }}>
                 {loading ? <Loader2 size={16} className="animate-spin"/> : <><span>Continuar</span><ArrowRight size={15}/></>}
               </button>
             </form>
           )}
 
-          {/* ── PASO 2: CÓDIGO ── */}
+          {/* ── PASO 2 ── */}
           {step === 'code' && (
             <form onSubmit={handleRedeem} className="space-y-5">
               <div className="mb-5">
                 <h2 className="text-xl font-bold text-white">Ingresa tu código</h2>
                 <p className="text-slate-400 text-sm mt-1">Escribe el código de regalo que recibiste.</p>
               </div>
-
               <div>
                 <label className="label">Código de regalo</label>
-                <input
-                  className="input text-center font-mono text-lg tracking-widest uppercase"
-                  value={code}
-                  onChange={e => setCode(e.target.value.toUpperCase())}
-                  placeholder="XXXX-XXXX-XXXX"
-                  maxLength={30}
-                  autoFocus
-                />
+                <input className="input text-center font-mono text-lg tracking-widest uppercase"
+                  value={code} onChange={e => setCode(e.target.value.toUpperCase())}
+                  placeholder="XXXX-XXXX-XXXX" maxLength={30} autoFocus/>
               </div>
-
               <button type="submit" disabled={loading || !code.trim()}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: loading ? 'none' : '0 0 20px rgba(124,58,237,0.35)' }}>
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>
                 {loading ? <Loader2 size={16} className="animate-spin"/> : <><Gift size={15}/> Canjear ahora</>}
               </button>
-
               <button type="button" onClick={() => { setStep('register'); setError('') }}
                 className="w-full text-slate-500 text-xs hover:text-slate-300 transition-colors py-1">
                 ← Volver
@@ -361,10 +400,9 @@ export default function GiftRedeem() {
             </form>
           )}
 
-          {/* ── PASO 3: RESULTADO ── */}
+          {/* ── PASO 3 ── */}
           {step === 'result' && result && (
             <div className="space-y-5">
-              {/* Éxito */}
               <div className="flex flex-col items-center text-center gap-3 pb-4 border-b border-white/5">
                 <div className="w-14 h-14 rounded-full bg-green-500/15 flex items-center justify-center"
                   style={{ boxShadow: '0 0 20px rgba(34,197,94,0.2)' }}>
@@ -375,14 +413,12 @@ export default function GiftRedeem() {
                   <p className="text-slate-400 text-sm mt-1">Aquí están los datos de tu cuenta</p>
                 </div>
               </div>
-
-              {/* Tarjeta de datos */}
               <div className="rounded-xl p-5 space-y-3"
                 style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
                 {[
-                  { label: 'Producto', value: result.product, icon: '🎬' },
-                  { label: 'Correo', value: result.email, icon: '📧', mono: true },
-                  { label: 'Contraseña', value: result.password, icon: '🔑', mono: true },
+                  { label: 'Producto',    value: result.product,  icon: '🎬' },
+                  { label: 'Correo',      value: result.email,    icon: '📧', mono: true },
+                  { label: 'Contraseña',  value: result.password, icon: '🔑', mono: true },
                 ].map(f => (
                   <div key={f.label} className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -396,19 +432,14 @@ export default function GiftRedeem() {
                   </div>
                 ))}
               </div>
-
-              {/* Fecha */}
               <p className="text-xs text-center text-slate-600">
                 Canjeado el {new Date(result.redeemed_at).toLocaleString('es-MX')}
               </p>
-
-              {/* Copiar todo */}
               <button onClick={copyAll}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all"
                 style={{ background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${copied ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`, color: copied ? '#4ade80' : '#94a3b8' }}>
                 {copied ? <><Check size={14}/> ¡Copiado!</> : <><Copy size={14}/> Copiar todos los datos</>}
               </button>
-
               <div className="flex items-center gap-2 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/15">
                 <ShieldCheck size={15} className="text-yellow-400 flex-shrink-0"/>
                 <p className="text-xs text-yellow-300/70">Guarda estos datos en un lugar seguro. No podrás verlos de nuevo.</p>
