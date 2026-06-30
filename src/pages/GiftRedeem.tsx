@@ -324,10 +324,10 @@ export default function GiftRedeem() {
               <div className="rounded-xl p-5 space-y-3"
                 style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
                 {[
-                  { label: 'Producto',    value: result.product,  icon: '🎬' },
+                  { label: 'Producto',    value: result.product,  icon: '🎬', mono: false },
                   { label: 'Correo',      value: result.email,    icon: '📧', mono: true },
                   { label: 'Contraseña',  value: result.password, icon: '🔑', mono: true },
-                  ...(result.pin ? [{ label: 'PIN de perfil', value: result.pin, icon: '🔢', mono: true }] : []),
+                  ...(result.pin ? [{ label: 'Perfil / PIN', value: result.pin, icon: '👤', mono: false }] : []),
                 ].map(f => (
                   <div key={f.label} className="flex items-start justify-between gap-3">
                     <div className="min-w-0">

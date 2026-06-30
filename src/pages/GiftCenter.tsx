@@ -606,9 +606,11 @@ export default function GiftCenter() {
             <input className="input font-mono" value={invForm.password} onChange={e => setInvForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••"/>
           </div>
           <div>
-            <label className="label">PIN de perfil <span className="text-gray-500 font-normal">(opcional)</span></label>
-            <input className="input font-mono" value={invForm.pin} onChange={e => setInvForm(f => ({ ...f, pin: e.target.value }))} placeholder="1234" maxLength={10}/>
-            <p className="text-xs text-gray-600 mt-1">Solo si la cuenta requiere PIN para acceder al perfil</p>
+            <label className="label">Perfil y PIN <span className="text-gray-500 font-normal">(opcional)</span></label>
+            <input className="input" value={invForm.pin}
+              onChange={e => setInvForm(f => ({ ...f, pin: e.target.value }))}
+              placeholder="Ej: Perfil 3 — PIN: 1234"/>
+            <p className="text-xs text-gray-600 mt-1">Escribe el nombre del perfil y el PIN que corresponde a esta cuenta</p>
           </div>
           <div>
             <label className="label">Código asociado (opcional)</label>
