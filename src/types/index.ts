@@ -205,6 +205,7 @@ export interface GiftInventory {
   product: string
   email: string
   password: string
+  pin?: string
   status: 'available' | 'delivered' | 'suspended'
   delivered_to?: string
   delivered_at?: string
@@ -239,6 +240,7 @@ export interface GiftRedemption {
   product?: string
   account_email?: string
   account_password?: string
+  account_pin?: string
   ip_address?: string
   country?: string
   city?: string

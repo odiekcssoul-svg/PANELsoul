@@ -49,7 +49,15 @@ const emptyCode = { name: '', code: '', product: '', description: '', start_date
 
 export default function GiftCenter() {
   const { currentUser } = useStore()
-  const ownerId = currentUser?.id
+  const [ownerId, setOwnerId] = useState<string | undefined>(undefined)
+
+  // Obtener el ID directamente de Supabase Auth
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.id) setOwnerId(session.user.id)
+      else if (currentUser?.id) setOwnerId(currentUser.id)
+    })
+  }, [currentUser?.id])
 
   const [tab, setTab] = useState<Tab>('dashboard')
   const [loading, setLoading] = useState(false)
@@ -68,7 +76,7 @@ export default function GiftCenter() {
   const [clientModal, setClientModal] = useState<GiftClient | null>(null)
   const [deleteClient, setDeleteClientTarget] = useState<GiftClient | null>(null)
   const [invModal, setInvModal] = useState(false)
-  const [invForm, setInvForm] = useState({ product: '', email: '', password: '', gift_code_id: '' })
+  const [invForm, setInvForm] = useState({ product: '', email: '', password: '', pin: '', gift_code_id: '' })
   const [csvLoading, setCsvLoading] = useState(false)
 
   // Search/filter
@@ -97,64 +105,27 @@ export default function GiftCenter() {
     if (!ownerId) return
     setLoading(true)
 
-    // Cargar códigos primero para tener los IDs
-    const { data: codesData } = await supabase
-      .from('gift_codes')
-      .select('*')
-      .eq('owner_id', ownerId)
-      .order('created_at', { ascending: false })
+    // Usar queries paralelas con manejo de errores individual
+    const codesRes = await supabase.from('gift_codes').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
+    const invRes   = await supabase.from('gift_inventory').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
 
-    if (codesData) setCodes(codesData as GiftCode[])
+    // gift_clients y gift_redemptions no tienen RLS — buscar por owner_id directo
+    const redRes     = await supabase.from('gift_redemptions').select('*').eq('owner_id', ownerId).order('redeemed_at', { ascending: false })
+    const clientsRes = await supabase.from('gift_clients').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false })
 
-    const codeIds = (codesData ?? []).map((c: any) => c.id)
+    // Si no trae nada con owner_id, intentar sin filtro (tablas sin RLS)
+    const redFinal = (redRes.data && redRes.data.length > 0)
+      ? redRes.data
+      : (await supabase.from('gift_redemptions').select('*').order('redeemed_at', { ascending: false })).data ?? []
 
-    // Cargar inventario
-    const { data: invData } = await supabase
-      .from('gift_inventory')
-      .select('*')
-      .eq('owner_id', ownerId)
-      .order('created_at', { ascending: false })
+    const clientsFinal = (clientsRes.data && clientsRes.data.length > 0)
+      ? clientsRes.data
+      : (await supabase.from('gift_clients').select('*').order('created_at', { ascending: false })).data ?? []
 
-    if (invData) setInventory(invData as GiftInventory[])
-
-    // Cargar redemptions — buscar por owner_id O por gift_code_id de mis códigos
-    let redemptionQuery = supabase
-      .from('gift_redemptions')
-      .select('*')
-      .order('redeemed_at', { ascending: false })
-
-    if (codeIds.length > 0) {
-      redemptionQuery = redemptionQuery.or(
-        `owner_id.eq.${ownerId},owner_id.is.null,gift_code_id.in.(${codeIds.join(',')})`
-      )
-    } else {
-      redemptionQuery = redemptionQuery.or(`owner_id.eq.${ownerId},owner_id.is.null`)
-    }
-
-    const { data: redData, error: redError } = await redemptionQuery
-
-    if (redError) console.error('Redemptions error:', redError.message)
-    if (redData) setRedemptions(redData as GiftRedemption[])
-
-    // Cargar clientes vinculados a mis canjes o directamente a mí
-    const clientIds = [...new Set((redData ?? []).map((r: any) => r.client_id).filter(Boolean))]
-
-    let clientQuery = supabase
-      .from('gift_clients')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (clientIds.length > 0) {
-      clientQuery = clientQuery.or(
-        `owner_id.eq.${ownerId},owner_id.is.null,id.in.(${clientIds.join(',')})`
-      )
-    } else {
-      clientQuery = clientQuery.or(`owner_id.eq.${ownerId},owner_id.is.null`)
-    }
-
-    const { data: clientData, error: clientError } = await clientQuery
-    if (clientError) console.error('Clients error:', clientError.message)
-    if (clientData) setClients(clientData as GiftClient[])
+    if (codesRes.data)  setCodes(codesRes.data as GiftCode[])
+    if (invRes.data)    setInventory(invRes.data as GiftInventory[])
+    setRedemptions(redFinal as GiftRedemption[])
+    setClients(clientsFinal as GiftClient[])
 
     setLoading(false)
   }
@@ -209,9 +180,15 @@ export default function GiftCenter() {
   // ── Inventory ────────────────────────────────────────────────────────────────
   async function saveInventory() {
     if (!invForm.product || !invForm.email || !invForm.password) { toast.error('Producto, correo y contraseña son requeridos'); return }
-    const { error } = await supabase.from('gift_inventory').insert({ ...invForm, owner_id: ownerId, gift_code_id: invForm.gift_code_id || null, status: 'available' })
+    const { error } = await supabase.from('gift_inventory').insert({
+      ...invForm,
+      pin: invForm.pin || null,
+      owner_id: ownerId,
+      gift_code_id: invForm.gift_code_id || null,
+      status: 'available'
+    })
     if (!error) { toast.success('Cuenta agregada'); await loadAll() }
-    setInvModal(false); setInvForm({ product: '', email: '', password: '', gift_code_id: '' })
+    setInvModal(false); setInvForm({ product: '', email: '', password: '', pin: '', gift_code_id: '' })
   }
 
   async function handleCSV(e: React.ChangeEvent<HTMLInputElement>) {
@@ -316,22 +293,63 @@ export default function GiftCenter() {
           {/* Últimos canjes */}
           <div className="card p-0 overflow-hidden">
             <div className="px-4 py-3 border-b border-dark-600 flex items-center justify-between">
-              <h3 className="font-semibold text-white text-sm">Últimos canjes</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-white text-sm">Últimos canjes</h3>
+                {redemptions.length > 0 && (
+                  <span className="bg-violet-500/20 text-violet-400 text-xs px-2 py-0.5 rounded-full font-medium">{redemptions.length}</span>
+                )}
+              </div>
               <button onClick={() => setTab('history')} className="text-xs text-gray-500 hover:text-violet-400 transition-colors">Ver todos →</button>
             </div>
             <div className="divide-y divide-dark-600">
-              {redemptions.slice(0, 6).map(r => (
-                <div key={r.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/20">
-                  <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0"><Gift size={13} className="text-violet-400"/></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{r.code_used}</p>
-                    <p className="text-xs text-gray-500">{r.product} · {r.device || 'Desconocido'}</p>
+              {redemptions.slice(0, 8).map(r => {
+                const client = clients.find(c => c.id === r.client_id)
+                const clientName = client?.name || r.code_used || '—'
+                const clientPhone = client?.phone || ''
+                return (
+                  <div key={r.id} className="flex items-center gap-3 px-4 py-3 hover:bg-dark-600/20 transition-colors">
+                    {/* Avatar cliente */}
+                    <div className="w-8 h-8 rounded-full bg-violet-600/30 border border-violet-500/30 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {clientName.charAt(0).toUpperCase()}
+                    </div>
+
+                    {/* Info cliente */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-white truncate">{clientName}</p>
+                        {clientPhone && (
+                          <span className="text-xs text-gray-500">{clientPhone}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <code className="text-xs text-violet-400 font-mono bg-violet-500/10 px-1.5 py-0.5 rounded">{r.code_used}</code>
+                        {r.product && <span className="text-xs text-gray-500">→ {r.product}</span>}
+                        {r.device && <span className="text-xs text-gray-600">{r.device}</span>}
+                      </div>
+                    </div>
+
+                    {/* Estado y fecha */}
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.status === 'completed' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {r.status === 'completed' ? '✓ Completado' : '✗ Fallido'}
+                      </span>
+                      <p className="text-xs text-gray-600">
+                        {r.redeemed_at ? new Date(r.redeemed_at).toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                      </p>
+                    </div>
+
+                    {/* WhatsApp */}
+                    {clientPhone && (
+                      <a href={`https://wa.me/${clientPhone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer"
+                        className="flex-shrink-0 p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                        title="Contactar por WhatsApp">
+                        <MessageCircle size={14}/>
+                      </a>
+                    )}
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${r.status === 'completed' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>{r.status === 'completed' ? 'Completado' : 'Fallido'}</span>
-                  <p className="text-xs text-gray-600 flex-shrink-0">{r.redeemed_at ? new Date(r.redeemed_at).toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</p>
-                </div>
-              ))}
-              {redemptions.length === 0 && <Empty icon={Gift} text="Sin canjes aún"/>}
+                )
+              })}
+              {redemptions.length === 0 && <Empty icon={Gift} text="Sin canjes aún — los canjes aparecerán aquí en tiempo real"/>}
             </div>
           </div>
         </div>
@@ -447,6 +465,7 @@ export default function GiftCenter() {
                 <thead><tr className="border-b border-dark-600">
                   <th className="table-header">Producto</th>
                   <th className="table-header">Correo</th>
+                  <th className="table-header hidden sm:table-cell">PIN</th>
                   <th className="table-header hidden md:table-cell">Estado</th>
                   <th className="table-header hidden lg:table-cell">Código</th>
                   <th className="table-header text-right">Acción</th>
@@ -456,6 +475,9 @@ export default function GiftCenter() {
                     <tr key={i.id} className="hover:bg-dark-600/20 border-b border-dark-600/40 last:border-0">
                       <td className="table-cell"><p className="text-sm text-white">{i.product}</p></td>
                       <td className="table-cell"><p className="text-xs font-mono text-gray-300">{i.email}</p></td>
+                      <td className="table-cell hidden sm:table-cell">
+                        <p className="text-xs font-mono text-gray-400">{i.pin || '—'}</p>
+                      </td>
                       <td className="table-cell hidden md:table-cell">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${i.status === 'available' ? 'bg-green-500/10 text-green-400' : i.status === 'delivered' ? 'bg-blue-500/10 text-blue-400' : 'bg-gray-500/10 text-gray-400'}`}>
                           {i.status === 'available' ? 'Disponible' : i.status === 'delivered' ? 'Entregada' : 'Suspendida'}
@@ -582,6 +604,11 @@ export default function GiftCenter() {
           <div>
             <label className="label">Contraseña *</label>
             <input className="input font-mono" value={invForm.password} onChange={e => setInvForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••"/>
+          </div>
+          <div>
+            <label className="label">PIN de perfil <span className="text-gray-500 font-normal">(opcional)</span></label>
+            <input className="input font-mono" value={invForm.pin} onChange={e => setInvForm(f => ({ ...f, pin: e.target.value }))} placeholder="1234" maxLength={10}/>
+            <p className="text-xs text-gray-600 mt-1">Solo si la cuenta requiere PIN para acceder al perfil</p>
           </div>
           <div>
             <label className="label">Código asociado (opcional)</label>

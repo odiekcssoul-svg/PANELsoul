@@ -20,6 +20,7 @@ interface RedeemResult {
   product: string
   email: string
   password: string
+  pin?: string
   redeemed_at: string
 }
 
@@ -120,6 +121,7 @@ export default function GiftRedeem() {
       product:     data.product,
       email:       data.email,
       password:    data.password,
+      pin:         data.pin ?? undefined,
       redeemed_at: data.redeemed_at,
     })
     setStep('result')
@@ -325,6 +327,7 @@ export default function GiftRedeem() {
                   { label: 'Producto',    value: result.product,  icon: '🎬' },
                   { label: 'Correo',      value: result.email,    icon: '📧', mono: true },
                   { label: 'Contraseña',  value: result.password, icon: '🔑', mono: true },
+                  ...(result.pin ? [{ label: 'PIN de perfil', value: result.pin, icon: '🔢', mono: true }] : []),
                 ].map(f => (
                   <div key={f.label} className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
