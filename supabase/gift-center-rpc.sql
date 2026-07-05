@@ -1,5 +1,6 @@
 -- ============================================================
--- FUNCIÓN RPC — redeem_gift_code v3 (columnas correctas)
+-- FUNCIÓN RPC — redeem_gift_code v4
+-- Fix: filtrar inventario por gift_code_id del código canjeado
 -- ============================================================
 
 DROP FUNCTION IF EXISTS public.redeem_gift_code(TEXT,TEXT,TEXT,TEXT,TEXT,TEXT,TEXT);
@@ -46,15 +47,19 @@ BEGIN
   END IF;
 
   -- 4. Inventario disponible
+  -- Solo entregar cuentas vinculadas EXACTAMENTE a este código.
+  -- Cuentas sin gift_code_id no se entregan por ningún código.
   SELECT * INTO v_inventory
   FROM gift_inventory
-  WHERE owner_id = v_code.owner_id AND status = 'available'
+  WHERE owner_id = v_code.owner_id
+    AND status = 'available'
+    AND gift_code_id = v_code.id
   ORDER BY created_at ASC
   LIMIT 1
   FOR UPDATE SKIP LOCKED;
 
   IF NOT FOUND THEN
-    RETURN json_build_object('success', false, 'error', 'No hay cuentas disponibles. Contacta a soporte.');
+    RETURN json_build_object('success', false, 'error', 'No hay cuentas disponibles para este código. Contacta a soporte.');
   END IF;
 
   -- 5. Crear o actualizar cliente

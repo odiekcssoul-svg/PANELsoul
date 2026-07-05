@@ -625,8 +625,8 @@ export default function Landing() {
               <p className="text-xs font-bold text-white uppercase tracking-wider mb-3">Contáctanos</p>
               <div className="flex gap-2 flex-wrap">
                 <a href={WA} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-green-400 transition-all" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}><MessageCircle size={12}/> WhatsApp</a>
-                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-400 transition-all" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}><Facebook size={13}/></a>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg flex items-center justify-center text-pink-400 transition-all" style={{ background: 'rgba(236,72,153,0.08)', border: '1px solid rgba(236,72,153,0.2)' }}><Instagram size={13}/></a>
+                <a href="https://www.facebook.com/share/1LPYzbzrjG/" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-400 transition-all" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}><Facebook size={13}/></a>
+                <a href="https://www.facebook.com/share/1LPYzbzrjG/" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg flex items-center justify-center text-pink-400 transition-all" style={{ background: 'rgba(236,72,153,0.08)', border: '1px solid rgba(236,72,153,0.2)' }}><Instagram size={13}/></a>
               </div>
             </div>
           </div>
