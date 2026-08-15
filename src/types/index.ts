@@ -18,16 +18,7 @@ export interface Client {
   updated_at: string
 }
 
-export type ServiceType =
-  | 'Netflix'
-  | 'Prime Video'
-  | 'Disney+'
-  | 'HBO Max'
-  | 'Spotify'
-  | 'YouTube Premium'
-  | 'Crunchyroll'
-  | 'Vix Premium'
-  | 'Paramount+'
+export type ServiceType = string
 
 export type AccountStatus = 'active' | 'expired' | 'suspended'
 

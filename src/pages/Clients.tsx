@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate } from '@/lib/utils'
 import { Client } from '@/types'
 import toast from 'react-hot-toast'
-import { SERVICE_ICONS } from '@/lib/utils'
+import { getServiceIcon } from '@/lib/utils'
 
 const PAGE_SIZE = 10
 
@@ -134,7 +134,7 @@ export default function Clients() {
                       <div className="flex gap-1 flex-wrap">
                         {svc.slice(0, 3).map(a => (
                           <span key={a.id} title={a.service_type} className="text-lg leading-none">
-                            {SERVICE_ICONS[a.service_type] || '📺'}
+                            {getServiceIcon(a.service_type)}
                           </span>
                         ))}
                         {svc.length > 3 && <span className="text-xs text-gray-500">+{svc.length - 3}</span>}
@@ -219,7 +219,7 @@ export default function Clients() {
               {clientAccounts.map(a => (
                 <div key={a.id} className="flex items-center justify-between p-3 bg-dark-600 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">{SERVICE_ICONS[a.service_type]}</span>
+                    <span className="text-xl">{getServiceIcon(a.service_type)}</span>
                     <div>
                       <p className="text-sm font-medium text-white">{a.service_type}</p>
                       <p className="text-xs text-gray-500">{a.email}</p>

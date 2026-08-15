@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
 import {
   Settings as SettingsIcon, MessageCircle, Building2,
-  CreditCard, Save, Eye, RefreshCw, CheckCircle,
+  CreditCard, Save, Eye, RefreshCw, CheckCircle, Tv, Trash2, Plus,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DEFAULT_SETTINGS } from '@/types'
 import { buildWhatsAppLink } from '@/lib/whatsapp'
+import {
+  getCustomServices, saveCustomServices, getAllServices,
+  DEFAULT_CUSTOM_ICON, DEFAULT_CUSTOM_COLOR, getServiceIcon, getServiceColor,
+  type CustomService,
+} from '@/lib/utils'
+import { Modal } from '@/components/ui/Modal'
 
 const VARIABLES = [
   { tag: '{nombre}',   desc: 'Nombre del cliente' },
@@ -25,6 +31,41 @@ export default function SettingsPage() {
   const [form, setForm] = useState(settings)
   const [saving, setSaving] = useState(false)
   const [previewTab, setPreviewTab] = useState<'renewal' | 'expired'>('renewal')
+
+  // Servicios personalizados
+  const [customServices, setCustomServices] = useState<CustomService[]>(() => getCustomServices())
+  const [newSvcModal, setNewSvcModal] = useState(false)
+  const [newSvcName, setNewSvcName] = useState('')
+  const [newSvcIcon, setNewSvcIcon] = useState(DEFAULT_CUSTOM_ICON)
+  const [newSvcColor, setNewSvcColor] = useState(DEFAULT_CUSTOM_COLOR)
+
+  function openNewServiceModal() {
+    setNewSvcName('')
+    setNewSvcIcon(DEFAULT_CUSTOM_ICON)
+    setNewSvcColor(DEFAULT_CUSTOM_COLOR)
+    setNewSvcModal(true)
+  }
+
+  function handleAddService() {
+    const trimmed = newSvcName.trim()
+    if (!trimmed) { toast.error('Escribe el nombre del servicio'); return }
+    const all = getAllServices()
+    if (all.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('Ese servicio ya existe'); return
+    }
+    const updated = [...customServices, { name: trimmed, icon: newSvcIcon, color: newSvcColor }]
+    saveCustomServices(updated)
+    setCustomServices(updated)
+    setNewSvcModal(false)
+    toast.success(`Servicio "${trimmed}" agregado`)
+  }
+
+  function handleDeleteService(name: string) {
+    const updated = customServices.filter(s => s.name !== name)
+    saveCustomServices(updated)
+    setCustomServices(updated)
+    toast.success(`Servicio "${name}" eliminado`)
+  }
 
   // Sincronizar cuando carguen los settings desde Supabase
   useEffect(() => { setForm(settings) }, [settings])
@@ -145,6 +186,44 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Servicios personalizados */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Tv size={16} className="text-brand-orange-400" />
+                <h3 className="font-semibold text-white text-sm">Servicios personalizados</h3>
+              </div>
+              <button onClick={openNewServiceModal} className="btn-primary py-1 px-3 text-xs">
+                <Plus size={13} /> Agregar
+              </button>
+            </div>
+            {customServices.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-3">
+                No tienes servicios personalizados.<br />Usa el botón "+" para agregar.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {customServices.map(svc => (
+                  <div key={svc.name}
+                    className="flex items-center justify-between p-2 bg-dark-600 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{svc.icon}</span>
+                      <span className="text-sm font-medium" style={{ color: svc.color }}>
+                        {svc.name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteService(svc.name)}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                      title="Eliminar servicio">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Variables disponibles */}
           <div className="card">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Variables disponibles</p>
@@ -241,6 +320,77 @@ export default function SettingsPage() {
           )}
         </button>
       </div>
+
+      {/* Modal nuevo servicio personalizado */}
+      <Modal isOpen={newSvcModal} onClose={() => setNewSvcModal(false)}
+        title="Agregar servicio personalizado" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Nombre del servicio *</label>
+            <input
+              className="input"
+              value={newSvcName}
+              onChange={e => setNewSvcName(e.target.value)}
+              placeholder="Ej: Canela TV, MUBI, Apple TV..."
+              onKeyDown={e => e.key === 'Enter' && handleAddService()}
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Emoji / ícono</label>
+              <input
+                className="input text-center text-2xl"
+                value={newSvcIcon}
+                onChange={e => setNewSvcIcon(e.target.value)}
+                placeholder="📺"
+                maxLength={4}
+              />
+              <p className="text-xs text-gray-500 mt-1">Pega un emoji</p>
+            </div>
+            <div>
+              <label className="label">Color</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  className="h-10 w-14 rounded-lg border border-dark-400 bg-dark-600 cursor-pointer p-1"
+                  value={newSvcColor}
+                  onChange={e => setNewSvcColor(e.target.value)}
+                />
+                <input
+                  className="input flex-1 font-mono text-sm"
+                  value={newSvcColor}
+                  onChange={e => setNewSvcColor(e.target.value)}
+                  placeholder="#6366F1"
+                  maxLength={7}
+                />
+              </div>
+            </div>
+          </div>
+          {newSvcName.trim() && (
+            <div className="p-3 bg-dark-600 rounded-xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                style={{ background: `${newSvcColor}20` }}>
+                {newSvcIcon || DEFAULT_CUSTOM_ICON}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: newSvcColor }}>
+                  {newSvcName.trim()}
+                </p>
+                <p className="text-xs text-gray-500">Vista previa</p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setNewSvcModal(false)} className="btn-secondary flex-1 justify-center">
+              Cancelar
+            </button>
+            <button onClick={handleAddService} className="btn-primary flex-1 justify-center">
+              <Plus size={15} /> Agregar
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   )

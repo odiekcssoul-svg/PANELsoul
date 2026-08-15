@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import {
   formatCurrency, isRenewalToday, isRenewalThisWeek,
-  SERVICE_COLORS, SERVICE_ICONS,
+  getServiceColor, getServiceIcon,
 } from '@/lib/utils'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -96,7 +96,7 @@ export default function Dashboard() {
   const revenueByService = useMemo(() => {
     const map: Record<string, { revenue: number; count: number; color: string }> = {}
     accounts.filter(a => a.status === 'active').forEach(a => {
-      if (!map[a.service_type]) map[a.service_type] = { revenue: 0, count: 0, color: SERVICE_COLORS[a.service_type] || '#6b7280' }
+      if (!map[a.service_type]) map[a.service_type] = { revenue: 0, count: 0, color: getServiceColor(a.service_type) }
       map[a.service_type].revenue += a.price || 0
       map[a.service_type].count++
     })
@@ -112,7 +112,7 @@ export default function Dashboard() {
       map[a.service_type] = (map[a.service_type] || 0) + 1
     })
     return Object.entries(map)
-      .map(([name, value]) => ({ name, value, color: SERVICE_COLORS[name] || '#6b7280' }))
+      .map(([name, value]) => ({ name, value, color: getServiceColor(name) }))
       .sort((a, b) => b.value - a.value)
   }, [accounts])
 
@@ -194,7 +194,7 @@ export default function Dashboard() {
               <div key={s.name}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-base leading-none">{SERVICE_ICONS[s.name] || '📺'}</span>
+                    <span className="text-base leading-none">{getServiceIcon(s.name)}</span>
                     <span className="text-sm text-gray-300">{s.name}</span>
                     <span className="text-xs text-gray-600 bg-dark-600 px-1.5 py-0.5 rounded-full">{s.count}</span>
                   </div>
@@ -322,8 +322,8 @@ export default function Dashboard() {
                 <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/30 transition-colors">
                   {/* Servicio */}
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
-                    style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
-                    {SERVICE_ICONS[a.service_type]}
+                    style={{ background: `${getServiceColor(a.service_type)}20` }}>
+                    {getServiceIcon(a.service_type)}
                   </div>
 
                   {/* Info */}
@@ -397,8 +397,8 @@ export default function Dashboard() {
               return (
                 <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/30 transition-colors">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
-                    style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
-                    {SERVICE_ICONS[a.service_type]}
+                    style={{ background: `${getServiceColor(a.service_type)}20` }}>
+                    {getServiceIcon(a.service_type)}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -470,8 +470,8 @@ export default function Dashboard() {
                     <tr key={svc} className="hover:bg-dark-600/20 transition-colors">
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-base">{SERVICE_ICONS[svc] || '📺'}</span>
-                          <span className="text-sm font-medium" style={{ color: SERVICE_COLORS[svc] || '#fff' }}>{svc}</span>
+                          <span className="text-base">{getServiceIcon(svc)}</span>
+                          <span className="text-sm font-medium" style={{ color: getServiceColor(svc) }}>{svc}</span>
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-center">

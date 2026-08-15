@@ -11,18 +11,15 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import {
   formatDate, getStatusColor, getStatusLabel,
-  copyToClipboard, SERVICE_ICONS, SERVICE_COLORS,
+  copyToClipboard, getServiceIcon, getServiceColor,
+  getAllServices, getCustomServices, saveCustomServices,
+  DEFAULT_CUSTOM_ICON, DEFAULT_CUSTOM_COLOR,
 } from '@/lib/utils'
 import { StreamingAccount, ServiceType, AccountStatus } from '@/types'
 import toast from 'react-hot-toast'
 import { exportAccountsExcel, exportAccountsPDF } from '@/lib/export'
 
 const PAGE_SIZE = 10
-
-const SERVICES: ServiceType[] = [
-  'Netflix', 'Prime Video', 'Disney+', 'HBO Max', 'Spotify',
-  'YouTube Premium', 'Crunchyroll', 'Vix Premium', 'Paramount+',
-]
 
 const emptyForm = {
   client_id: '', client_name: '', client_phone: '',
@@ -47,6 +44,35 @@ export default function Accounts() {
   const [form, setForm] = useState(emptyForm)
   const [newRenewDate, setNewRenewDate] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Estado para servicios y modal de nuevo servicio
+  const [services, setServices] = useState<string[]>(() => getAllServices())
+  const [newSvcModal, setNewSvcModal] = useState(false)
+  const [newSvcName, setNewSvcName] = useState('')
+  const [newSvcIcon, setNewSvcIcon] = useState(DEFAULT_CUSTOM_ICON)
+  const [newSvcColor, setNewSvcColor] = useState(DEFAULT_CUSTOM_COLOR)
+
+  function openNewServiceModal() {
+    setNewSvcName('')
+    setNewSvcIcon(DEFAULT_CUSTOM_ICON)
+    setNewSvcColor(DEFAULT_CUSTOM_COLOR)
+    setNewSvcModal(true)
+  }
+
+  function handleAddService() {
+    const trimmed = newSvcName.trim()
+    if (!trimmed) { toast.error('Escribe el nombre del servicio'); return }
+    if (services.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error('Ese servicio ya existe'); return
+    }
+    const existing = getCustomServices()
+    saveCustomServices([...existing, { name: trimmed, icon: newSvcIcon, color: newSvcColor }])
+    const updated = getAllServices()
+    setServices(updated)
+    setForm(f => ({ ...f, service_type: trimmed as ServiceType }))
+    setNewSvcModal(false)
+    toast.success(`Servicio "${trimmed}" agregado`)
+  }
 
   const filtered = useMemo(() =>
     accounts.filter(a => {
@@ -169,7 +195,7 @@ export default function Accounts() {
             <label className="label text-xs">Servicio</label>
             <select className="select" value={filterService} onChange={e => { setFilterService(e.target.value); setPage(1) }}>
               <option value="">Todos los servicios</option>
-              {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
+              {services.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className="flex-1 min-w-[140px]">
@@ -212,12 +238,12 @@ export default function Accounts() {
                     <td className="table-cell">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                          style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
-                          {SERVICE_ICONS[a.service_type]}
+                          style={{ background: `${getServiceColor(a.service_type)}20` }}>
+                          {getServiceIcon(a.service_type)}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-white"
-                            style={{ color: SERVICE_COLORS[a.service_type] }}>
+                            style={{ color: getServiceColor(a.service_type) }}>
                             {a.service_type}
                           </p>
                           <p className="text-xs text-gray-400">{a.client_name}</p>
@@ -307,10 +333,16 @@ export default function Accounts() {
           </div>
           <div>
             <label className="label">Servicio *</label>
-            <select className="select" value={form.service_type}
-              onChange={e => setForm({ ...form, service_type: e.target.value as ServiceType })}>
-              {SERVICES.map(s => <option key={s} value={s}>{SERVICE_ICONS[s]} {s}</option>)}
-            </select>
+            <div className="flex gap-2">
+              <select className="select flex-1" value={form.service_type}
+                onChange={e => setForm({ ...form, service_type: e.target.value as ServiceType })}>
+                {services.map(s => <option key={s} value={s}>{getServiceIcon(s)} {s}</option>)}
+              </select>
+              <button type="button" onClick={openNewServiceModal}
+                className="btn-secondary px-3 flex-shrink-0" title="Agregar servicio personalizado">
+                <Plus size={15} />
+              </button>
+            </div>
           </div>
           <div>
             <label className="label">Estado</label>
@@ -411,6 +443,78 @@ export default function Accounts() {
         confirmLabel="Eliminar"
         danger
       />
+
+      {/* New custom service modal */}
+      <Modal isOpen={newSvcModal} onClose={() => setNewSvcModal(false)}
+        title="Agregar servicio personalizado" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="label">Nombre del servicio *</label>
+            <input
+              className="input"
+              value={newSvcName}
+              onChange={e => setNewSvcName(e.target.value)}
+              placeholder="Ej: Canela TV, MUBI, Apple TV..."
+              onKeyDown={e => e.key === 'Enter' && handleAddService()}
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Emoji / ícono</label>
+              <input
+                className="input text-center text-2xl"
+                value={newSvcIcon}
+                onChange={e => setNewSvcIcon(e.target.value)}
+                placeholder="📺"
+                maxLength={4}
+              />
+              <p className="text-xs text-gray-500 mt-1">Pega un emoji</p>
+            </div>
+            <div>
+              <label className="label">Color</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  className="h-10 w-14 rounded-lg border border-dark-400 bg-dark-600 cursor-pointer p-1"
+                  value={newSvcColor}
+                  onChange={e => setNewSvcColor(e.target.value)}
+                />
+                <input
+                  className="input flex-1 font-mono text-sm"
+                  value={newSvcColor}
+                  onChange={e => setNewSvcColor(e.target.value)}
+                  placeholder="#6366F1"
+                  maxLength={7}
+                />
+              </div>
+            </div>
+          </div>
+          {/* Preview */}
+          {newSvcName.trim() && (
+            <div className="p-3 bg-dark-600 rounded-xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                style={{ background: `${newSvcColor}20` }}>
+                {newSvcIcon || DEFAULT_CUSTOM_ICON}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: newSvcColor }}>
+                  {newSvcName.trim()}
+                </p>
+                <p className="text-xs text-gray-500">Vista previa</p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setNewSvcModal(false)} className="btn-secondary flex-1 justify-center">
+              Cancelar
+            </button>
+            <button onClick={handleAddService} className="btn-primary flex-1 justify-center">
+              <Plus size={15} /> Agregar
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

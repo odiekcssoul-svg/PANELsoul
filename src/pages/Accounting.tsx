@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Pagination } from '@/components/ui/Pagination'
-import { formatDate, formatCurrency, SERVICE_ICONS, SERVICE_COLORS } from '@/lib/utils'
+import { formatDate, formatCurrency, getServiceIcon, getServiceColor } from '@/lib/utils'
 import {
   Transaction, TransactionType, TransactionCategory,
   INCOME_CATEGORIES, EXPENSE_CATEGORIES, PAYMENT_METHODS,
@@ -354,8 +354,8 @@ export default function Accounting() {
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
-                        <span>{SERVICE_ICONS[a.service_type]}</span>
-                        <span className="text-sm" style={{ color: SERVICE_COLORS[a.service_type] }}>{a.service_type}</span>
+                        <span>{getServiceIcon(a.service_type)}</span>
+                        <span className="text-sm" style={{ color: getServiceColor(a.service_type) }}>{a.service_type}</span>
                       </div>
                     </td>
                     <td className="table-cell text-gray-400 text-sm">{formatDate(a.renewal_date)}</td>
@@ -407,8 +407,8 @@ export default function Accounting() {
                 const wa = a.client_phone ? buildWhatsAppLink({ clientName: a.client_name || '', clientPhone: a.client_phone, serviceType: a.service_type, email: a.email, renewalDate: formatDate(a.renewal_date), price: a.price, isExpired: true, settings }) : ''
                 return (
                   <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/20">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
-                      {SERVICE_ICONS[a.service_type]}
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${getServiceColor(a.service_type)}20` }}>
+                      {getServiceIcon(a.service_type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">{a.client_name || '—'}</p>
@@ -457,8 +457,8 @@ export default function Accounting() {
                 const wa = a.client_phone ? buildWhatsAppLink({ clientName: a.client_name || '', clientPhone: a.client_phone, serviceType: a.service_type, email: a.email, renewalDate: formatDate(a.renewal_date), price: a.price, isExpired: false, settings }) : ''
                 return (
                   <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-dark-600/20">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
-                      {SERVICE_ICONS[a.service_type]}
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${getServiceColor(a.service_type)}20` }}>
+                      {getServiceIcon(a.service_type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">{a.client_name || '—'}</p>
@@ -622,7 +622,7 @@ export default function Accounting() {
                     </td>
                     <td className="table-cell hidden md:table-cell text-xs text-gray-400">
                       <div className="flex items-center gap-1">
-                        {t.service_type && <span>{SERVICE_ICONS[t.service_type]}</span>}
+                        {t.service_type && <span>{getServiceIcon(t.service_type)}</span>}
                         {t.client_name || '—'}
                       </div>
                     </td>
@@ -704,7 +704,7 @@ export default function Accounting() {
                 <label className="label">Cuenta streaming</label>
                 <select className="select" value={form.streaming_account_id} onChange={e => onAccountChange(e.target.value)}>
                   <option value="">Sin cuenta</option>
-                  {clientAccounts.map(a => <option key={a.id} value={a.id}>{SERVICE_ICONS[a.service_type]} {a.service_type} — {a.client_name || a.email}</option>)}
+                  {clientAccounts.map(a => <option key={a.id} value={a.id}>{getServiceIcon(a.service_type)} {a.service_type} — {a.client_name || a.email}</option>)}
                 </select>
               </div>
             </div>

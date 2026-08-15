@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '@/store/useStore'
 import { RefreshCw, Calendar, AlertTriangle, CheckCircle, Clock, MessageCircle } from 'lucide-react'
-import { formatDate, SERVICE_ICONS, SERVICE_COLORS } from '@/lib/utils'
+import { formatDate, getServiceIcon, getServiceColor } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import { StreamingAccount } from '@/types'
 import toast from 'react-hot-toast'
@@ -138,12 +138,12 @@ export default function Renewals() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl"
-                      style={{ background: `${SERVICE_COLORS[a.service_type]}20` }}>
-                      {SERVICE_ICONS[a.service_type]}
+                      style={{ background: `${getServiceColor(a.service_type)}20` }}>
+                      {getServiceIcon(a.service_type)}
                     </div>
                     <div>
                       <p className="font-semibold text-white text-sm">{a.client_name}</p>
-                      <p className="text-xs" style={{ color: SERVICE_COLORS[a.service_type] }}>
+                      <p className="text-xs" style={{ color: getServiceColor(a.service_type) }}>
                         {a.service_type}
                       </p>
                     </div>
@@ -218,7 +218,7 @@ export default function Renewals() {
       <Modal isOpen={renewModal} onClose={() => setRenewModal(false)} title="Renovar cuenta" size="sm">
         <div className="space-y-4">
           <div className="p-3 bg-dark-600 rounded-lg flex items-center gap-3">
-            <span className="text-2xl">{selected && SERVICE_ICONS[selected.service_type]}</span>
+            <span className="text-2xl">{selected && getServiceIcon(selected.service_type)}</span>
             <div>
               <p className="font-medium text-white">{selected?.client_name}</p>
               <p className="text-xs text-gray-400">{selected?.service_type} · ${selected?.price}</p>

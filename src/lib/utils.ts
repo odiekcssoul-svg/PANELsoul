@@ -68,6 +68,11 @@ export function getStatusLabel(status: string) {
   return labels[status] || status
 }
 
+export const DEFAULT_SERVICES = [
+  'Netflix', 'Prime Video', 'Disney+', 'HBO Max', 'Spotify',
+  'YouTube Premium', 'Crunchyroll', 'Vix Premium', 'Paramount+',
+]
+
 export const SERVICE_COLORS: Record<string, string> = {
   'Netflix': '#E50914',
   'Prime Video': '#00A8E0',
@@ -90,6 +95,43 @@ export const SERVICE_ICONS: Record<string, string> = {
   'Crunchyroll': '⚡',
   'Vix Premium': '🌟',
   'Paramount+': '⭐',
+}
+
+export const DEFAULT_CUSTOM_ICON = '📺'
+export const DEFAULT_CUSTOM_COLOR = '#6366F1'
+
+export interface CustomService {
+  name: string
+  icon: string
+  color: string
+}
+
+const STORAGE_KEY = 'panelsoul_custom_services'
+
+export function getCustomServices(): CustomService[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveCustomServices(services: CustomService[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(services))
+}
+
+export function getAllServices(): string[] {
+  const custom = getCustomServices().map(s => s.name)
+  return [...DEFAULT_SERVICES, ...custom]
+}
+
+export function getServiceIcon(name: string): string {
+  return SERVICE_ICONS[name] ?? getCustomServices().find(s => s.name === name)?.icon ?? DEFAULT_CUSTOM_ICON
+}
+
+export function getServiceColor(name: string): string {
+  return SERVICE_COLORS[name] ?? getCustomServices().find(s => s.name === name)?.color ?? DEFAULT_CUSTOM_COLOR
 }
 
 export function copyToClipboard(text: string) {

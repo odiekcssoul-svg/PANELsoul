@@ -6,7 +6,7 @@ import {
   Users, Monitor, Mail, Loader2, ChevronDown, ChevronUp, X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { SERVICE_ICONS } from '@/lib/utils'
+import { getServiceIcon } from '@/lib/utils'
 
 type Step = 'upload' | 'preview' | 'importing' | 'done'
 
@@ -226,7 +226,7 @@ export default function Import() {
                 {Object.entries(accountsByService).map(([service, accs]) => (
                   <div key={service}>
                     <div className="px-4 py-2 bg-dark-700 flex items-center gap-2">
-                      <span className="text-lg">{SERVICE_ICONS[service] || '📺'}</span>
+                      <span className="text-lg">{getServiceIcon(service)}</span>
                       <span className="text-sm font-medium text-white">{service}</span>
                       <span className="text-xs text-gray-500 ml-auto">{accs.length} cuentas</span>
                     </div>
